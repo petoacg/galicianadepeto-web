@@ -1,5 +1,5 @@
 
-const key='gdp-pages-c2c424864c9d';
+const key='gdp-pages-0ea845fdac48';
 self.addEventListener('install',e=>e.waitUntil(caches.open(key).then(c=>c.addAll(['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon.svg','./apple-touch-icon.png']))));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('gdp-pages-')&&k!==key).map(k=>caches.delete(k))))));
 self.addEventListener('fetch',e=>{
