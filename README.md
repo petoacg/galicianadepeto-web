@@ -1,4 +1,4 @@
-# Galiciana de Peto · versión web
+# Galiciana de Peto · versión web instalable
 
 <p align="center"><a href="https://petoacg.github.io/galicianadepeto-web/?instalar"><img src="install-badge.svg" alt="Instalar Galiciana de Peto" width="360"></a></p>
 
@@ -6,7 +6,9 @@
 
 **Abrir:** https://petoacg.github.io/galicianadepeto-web/
 
-Galiciana de Peto es una aplicación independiente para consultar la hemeroteca digital de Galiciana, la Biblioteca Dixital de Galicia. Permite buscar en el texto OCR de las publicaciones, abrir los facsímiles con las coincidencias resaltadas y organizar los hallazgos en páginas guardadas, carpetas y notas de referencia. Esta es la versión web de la [app para Android](https://github.com/petoacg/galicianadepeto/releases/latest): funciona en cualquier móvil u ordenador con un navegador y se puede instalar como una app más.
+> **Te recomendamos instalarla en lugar de usarla en una pestaña del navegador.** Instalada está pensada para el móvil: se abre desde su icono **GdPeto**, ocupa toda la pantalla sin la barra de direcciones ni las pestañas, no se pierde entre otras webs y se comporta como la app de Android, con su propia ventana. Es la misma web, sin cuentas y sin ocupar casi espacio, y se actualiza sola.
+
+Galiciana de Peto es una aplicación independiente para consultar la hemeroteca digital de Galiciana, la Biblioteca Dixital de Galicia. Permite buscar en el texto OCR de las publicaciones, abrir los facsímiles con las coincidencias resaltadas y organizar los hallazgos en páginas guardadas, carpetas y notas de referencia. Esta es la versión web instalable de la [app para Android](https://github.com/petoacg/galicianadepeto/releases/latest): funciona en cualquier móvil u ordenador con un navegador y se puede instalar como una app más.
 
 - **Buscar:** en el texto de las páginas o en el catálogo, con filtros de publicación, autor, lugar, período y tema. Los resultados se agrupan por obra y separan coincidencias exactas, variantes de OCR y coincidencias más amplias. Se pueden guardar varias páginas a la vez.
 - **Leer:** visor con zoom, paso de página con el dedo, pantalla completa, coincidencias resaltadas y un halo que señala la activa, lista de páginas del documento donde aparece la búsqueda, texto OCR para leer y copiar, y descarga en JPEG o PDF.
@@ -19,7 +21,7 @@ La consulta de documentos necesita conexión. Los derechos de cada documento fig
 
 ## Instalarla en el móvil, paso a paso
 
-Instalarla añade el icono **GdPeto** a la pantalla de inicio y la abre en su propia ventana, sin la barra del navegador. Los nombres de los menús son los que aparecen con el teléfono en español; en gallego o en otro idioma dicen lo mismo traducido.
+Es la forma recomendada de usarla. Instalarla añade el icono **GdPeto** a la pantalla de inicio y la abre en su propia ventana, sin la barra del navegador. Lo más fácil es abrir el enlace en el móvil y seguir la pantalla de instalación; si prefieres hacerlo a mano, estos son los pasos. Los nombres de los menús son los que aparecen con el teléfono en español; en gallego o en otro idioma dicen lo mismo traducido.
 
 ### iPhone
 
