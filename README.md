@@ -1,5 +1,9 @@
 # Galiciana de Peto · versión web
 
+<p align="center"><a href="https://petoacg.github.io/galicianadepeto-web/?instalar"><img src="install-badge.svg" alt="Instalar Galiciana de Peto" width="360"></a></p>
+
+**Ábrela desde el móvil y sigue la pantalla de instalación:** en Android basta con tocar «Instalar a app»; en iPhone te enseña paso a paso dónde tocar. Puedes elegir gallego o español desde el primer momento.
+
 **Abrir:** https://petoacg.github.io/galicianadepeto-web/
 
 Galiciana de Peto es una aplicación independiente para consultar la hemeroteca digital de Galiciana, la Biblioteca Dixital de Galicia. Permite buscar en el texto OCR de las publicaciones, abrir los facsímiles con las coincidencias resaltadas y organizar los hallazgos en páginas guardadas, carpetas y notas de referencia. Esta es la versión web de la [app para Android](https://github.com/petoacg/galicianadepeto/releases/latest): funciona en cualquier móvil u ordenador con un navegador y se puede instalar como una app más.
