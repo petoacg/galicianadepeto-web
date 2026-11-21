@@ -1,5 +1,5 @@
 
-const key='gdp-pages-78d9b2f76ed7';
+const key='gdp-pages-b75daf6459d8';
 self.addEventListener('install',e=>e.waitUntil(caches.open(key).then(c=>c.addAll(['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon.svg','./apple-touch-icon.png']))));
 // The app's "Actualizar" button asks the waiting worker to take over (as the gateway build's sw does).
 self.addEventListener('message',e=>{if(e.data&&e.data.type==='ACTIVATE')self.skipWaiting()});
