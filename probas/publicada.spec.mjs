@@ -3,7 +3,7 @@ import {test as base, expect} from '@playwright/test';
 import {readdir, stat} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {scope, serve} from './servidor.mjs';
-import {obra, simulate} from './galiciana.mjs';
+import {ficha, obra, obraPdf, obraSenTexto, simulate} from './galiciana.mjs';
 const root = fileURLToPath(new URL(process.env.GDP_SITE ?? '../', import.meta.url));
 
 const test = base.extend({
@@ -181,6 +181,81 @@ test('las variantes van de una en una y se paran al salir', async ({app, context
   await page.waitForTimeout(300); const antes = log.filter(x => x.startsWith('buscarReferencia')).length;
   await page.waitForTimeout(3500);
   expect(log.filter(x => x.startsWith('buscarReferencia')).length).toBe(antes);
+});
+const abreFicha = async ({page, site}) => page.goto(site.url + '#screen=record&url=' + encodeURIComponent('https://biblioteca.galiciana.gal/es/consulta/registro.do?id=1'));
+test('la ficha enseña sus datos y abre la copia con páginas, no el PDF', async ({app, context}) => {
+  const log = []; await simulate(context, log, undefined, {ficha: ficha()});
+  await abreFicha(app);
+  const {page} = app;
+  await expect(page.getByRole('heading', {name: 'Datos do catálogo'})).toBeVisible();
+  await expect(page.locator('dd', {hasText: 'Canteiros'})).toContainText('Pontes');
+  await page.getByRole('button', {name: 'Abrir copia dixital'}).click();
+  await expect(page.getByText('Páxina 1 de 6')).toBeVisible();
+  expect(log).not.toContain('recursoReferencia:mets:' + obraPdf);
+});
+test('una obra que solo está en PDF se dice y se abre fuera', async ({app, context}) => {
+  const log = []; await simulate(context, log, undefined, {ficha: ficha(obraPdf)});
+  await abreFicha(app);
+  const {page} = app;
+  await page.getByRole('button', {name: 'Abrir copia dixital'}).click();
+  await expect(page.getByRole('heading', {name: 'Esta copia é un só PDF'})).toBeVisible();
+  await expect(page.getByRole('link', {name: 'Abrir o PDF en Galiciana'})).toHaveAttribute('href', /idImagen=8001$/);
+  await page.waitForTimeout(1500);
+  await expect(page.getByText('Comproba a conexión')).toHaveCount(0);
+  await expect(page.getByText('Páxina 1 de 1')).toHaveCount(0);
+  await page.getByRole('button', {name: 'Accións desta páxina'}).click();
+  await expect(page.getByText('Descargar páxina')).toHaveCount(0);
+});
+test('abrir otra página no pide el texto, que se pide al abrirlo; y un fallo no se dice «sin texto»', async ({app, context}) => {
+  const log = []; let falla = true; await simulate(context, log, undefined, {fallos: args => args[0] === 'ocr' && falla});
+  const {page} = app;
+  await page.goto(app.site.url); await app.ready();
+  await busca(page, 'mestre canteiro'); await page.locator('.hit').first().click();
+  await expect(page.locator('.ocr-overlay rect').first()).toBeVisible();
+  await page.waitForTimeout(1600);
+  expect(log.filter(x => x.startsWith('recursoReferencia:ocr'))).toEqual([]);
+  // Las marcas de la siguiente se leen por adelantado; volver no las pide otra vez.
+  expect(log.filter(x => x.startsWith('recursoReferencia:alto'))).toEqual(['recursoReferencia:alto:2', 'recursoReferencia:alto:3']);
+  await page.getByRole('button', {name: 'Seguinte', exact: true}).click();
+  await expect(page.getByText('Páxina 3 de 6')).toBeVisible();
+  await page.waitForTimeout(700);
+  await page.getByRole('button', {name: 'Anterior', exact: true}).click();
+  await expect(page.getByText('Páxina 2 de 6')).toBeVisible();
+  expect(log.filter(x => /alto:[23]$/.test(x))).toHaveLength(2);
+  await page.getByRole('button', {name: 'Accións desta páxina'}).click();
+  await page.getByRole('button', {name: /Ler e copiar texto/}).click();
+  await expect(page.getByText('Non se puido cargar o texto desta páxina')).toBeVisible();
+  falla = false;
+  await page.getByRole('button', {name: 'Reintentar'}).click();
+  await expect(page.locator('.ocr-text')).toHaveText('O mestre canteiro');
+});
+test('en una obra sin texto no se pide ni se ofrece revisarlo', async ({app, context}) => {
+  const log = []; await simulate(context, log, undefined, {ficha: ficha().replaceAll(obra.path, obraSenTexto)});
+  await abreFicha(app);
+  const {page} = app;
+  await page.getByRole('button', {name: 'Abrir copia dixital'}).click();
+  await expect(page.getByText('Páxina 1 de 6')).toBeVisible();
+  await page.getByRole('button', {name: 'Buscar na páxina', exact: true}).click();
+  await page.getByRole('textbox', {name: 'Buscar nesta páxina'}).fill('mestre');
+  await page.getByRole('textbox', {name: 'Buscar nesta páxina'}).press('Enter');
+  await expect(page.getByText('Esta páxina non ten texto recoñecido dispoñible.')).toBeVisible();
+  await expect(page.getByText('Revisar todo o documento')).toHaveCount(0);
+  await expect(page.getByRole('button', {name: 'Reintentar'})).toHaveCount(0);
+  expect(log.filter(x => /:(alto|ocr):/.test(x))).toEqual([]);
+});
+test('lo guardado y sus notas se abren sin conexión', async ({app, context}) => {
+  const log = []; await simulate(context, log);
+  const {page} = app;
+  await page.goto(app.site.url); await app.ready(); await app.controlled();
+  await busca(page, 'mestre canteiro');
+  await page.locator('.hit').first().getByRole('button', {name: 'Gardar páxina'}).click();
+  await expect(page.locator('.hit').first().getByRole('button', {name: 'Quitar de Gardados'})).toBeVisible();
+  await context.setOffline(true);
+  await page.goto(app.site.url); await app.ready();
+  await page.getByRole('navigation', {name: 'Navegación principal'}).getByRole('button', {name: 'Gardados', exact: true}).click();
+  await expect(page.getByText(obra.title).first()).toBeVisible();
+  await page.getByRole('button', {name: /nota de referencia/i}).first().click();
+  await expect(page.getByRole('dialog')).toBeVisible();
 });
 test('todo lo que nombra el service worker existe', async ({site, request}) => {
   const worker = await (await request.get(site.url + 'sw.js')).text();
