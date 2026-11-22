@@ -5,15 +5,26 @@
   const json = (body, status = 200) => new Response(JSON.stringify(body), {
     status, headers: { 'Content-Type': 'application/json' },
   });
-  const rpc = async (name, ...args) => {
+  // Galiciana puede tardar 40 s la primera vez: el mismo límite para todo, como la APK (readTimeout).
+  const LIMIT_MS = 90000;
+  const rpc = async (signal, name, ...args) => {
+    signal?.throwIfAborted();
     if (globalThis.google?.script?.run) return new Promise((resolve, reject) =>
       google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[name](...args));
-    const response = await fetchOriginal(endpoint, {
-      method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-      body: JSON.stringify({ name, args }), signal: AbortSignal.timeout(65000),
-    });
-    if (!response.ok) throw Error('La pasarela respondió HTTP ' + response.status + '.');
-    const result = await response.json();
+    // AbortSignal.any no está en los navegadores de antes de 2024: se enlazan a mano.
+    const controller = new AbortController();
+    const leave = () => controller.abort(signal.reason);
+    const timer = setTimeout(() => controller.abort(new DOMException('signal timed out', 'TimeoutError')), LIMIT_MS);
+    signal?.addEventListener('abort', leave);
+    let result;
+    try {
+      const response = await fetchOriginal(endpoint, {
+        method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: JSON.stringify({ name, args }), signal: controller.signal,
+      });
+      if (!response.ok) throw Error('La pasarela respondió HTTP ' + response.status + '.');
+      result = await response.json();
+    } finally { clearTimeout(timer); signal?.removeEventListener('abort', leave); }
     if (!result.ok) throw Error(result.error || 'La pasarela no devolvió una respuesta válida.');
     return result.value;
   };
@@ -47,24 +58,27 @@
       if (id) images.set(id, false);
     }
     if (!images.size) throw Error('El ejemplar no contiene páginas reconocibles.');
-    return { path, title: xml(source, 'title')[0]?.textContent, pages:
+    // Las páginas no enlazan su texto, así que hasOcr no sirve para saber si la obra lo tiene.
+    const hasText = [...files.values()].some(href => /descargar(?:Alto|TextoOCR)/i.test(href || ''));
+    return { path, title: xml(source, 'title')[0]?.textContent, hasText, pages:
       Array.from(images, ([imageId, hasOcr], index) => ({ imageId, hasOcr, position: index + 1, label: 'Pág. ' + (index + 1) })) };
   };
-  const resource = async (name, path, position, imageId) => {
-    const data = await rpc('recursoReferencia', name, path, position, imageId);
+  const resource = async (name, path, position, imageId, signal) => {
+    const data = await rpc(signal, 'recursoReferencia', name, path, position, imageId);
     if (data.error || !data[name]) throw Error(data.error || 'Galiciana no devolvió el recurso.');
     return decode(data[name]);
   };
   const text = bytes => new TextDecoder().decode(bytes);
-  const work = async path => documentPages(path, text(await resource('mets', path, '1', '0')));
+  const work = async (path, signal) => documentPages(path, text(await resource('mets', path, '1', '0', signal)));
   const box = node => Object.fromEntries([
     ['left','HPOS'], ['top','VPOS'], ['width','WIDTH'], ['height','HEIGHT'],
   ].map(([key, name]) => [key, Number(node.getAttribute(name))]));
-  const page = async (path, position, imageId, query) => {
+  const page = async (path, position, imageId, query, signal) => {
     const [ocr, alto] = await Promise.allSettled([
-      resource('ocr', path, position, imageId || '0'),
-      query ? resource('alto', path, position, imageId || '0') : Promise.resolve(null),
+      resource('ocr', path, position, imageId || '0', signal),
+      query ? resource('alto', path, position, imageId || '0', signal) : Promise.resolve(null),
     ]);
+    signal?.throwIfAborted();
     let ocrText = ocr.status === 'fulfilled' ? text(ocr.value) : '';
     if (/^\s*<(?:html|!doctype)/i.test(ocrText)) ocrText = '';
     const source = alto.status === 'fulfilled' && alto.value ? text(alto.value) : '';
@@ -94,10 +108,10 @@
       pageSize: size, matches: found.filter(match => match.boxes.every(value => value.width > 0 && value.height > 0)), status: !query ? 'EMPTY' : !sheet ? 'UNAVAILABLE' : found.length ? 'AVAILABLE' : 'EMPTY',
     }};
   };
-  const image = async (path, position, id) => {
-    const imageId = id || (await work(path)).pages.find(p => p.position === Number(position))?.imageId;
+  const image = async (path, position, id, signal) => {
+    const imageId = id || (await work(path, signal)).pages.find(p => p.position === Number(position))?.imageId;
     if (!imageId) throw Error('No se ha encontrado la imagen de la página.');
-    return resource('jpeg', path, position, imageId);
+    return resource('jpeg', path, position, imageId, signal);
   };
   globalThis.gdpReferenceImage = async url => {
     const params = new URL(url, location.href).searchParams;
@@ -246,8 +260,8 @@
       return true;
     });
   };
-  const fetchSearchPage = async (preset, cursor, sort, asc) => {
-    const data = await rpc('buscarReferencia', preset, cursor, sort, asc);
+  const fetchSearchPage = async (preset, cursor, sort, asc, signal, session) => {
+    const data = await rpc(signal, 'buscarReferencia', preset, cursor, sort, asc, session);
     if (data.error || data.estado !== 200) throw Error(data.error || 'Galiciana no devolvió resultados válidos.');
     const doc = new DOMParser().parseFromString(data.html, 'text/html');
     const clean = value => (value || '').replace(/\s+/g, ' ').trim();
@@ -281,14 +295,14 @@
     }
     return {hits, cursor:data.cursor, totalWorks, order:data.ordenAplicado};
   };
-  const search = async ({preset, cursors = [], sort = 'Relevancia', asc = false}) => {
+  const search = async ({preset, cursors = [], sort = 'Relevancia', asc = false, session}, signal) => {
     if (cursors.length > 2) throw Error('Cursores de búsqueda no válidos.');
     const query = normalizedQuery(preset.query);
     const apiQuery = (query.match(/"/g) || []).length % 2 ? query.replaceAll('"', '') : query;
     const section = preset.advanced ? (preset.section || '').trim() : '';
     const sections = fold(section) === 'sucesos y sociedad' ? ['Sucesos','Sociedad'] : [section];
-    const pages = await Promise.all(cursors.length ? cursors.map(cursor => fetchSearchPage(preset, cursor, sort, asc)) :
-      sections.map(name => fetchSearchPage({...preset, query:[apiQuery, name].filter(Boolean).join(' ')}, '', sort, asc)));
+    const pages = await Promise.all(cursors.length ? cursors.map(cursor => fetchSearchPage(preset, cursor, sort, asc, signal)) :
+      sections.map(name => fetchSearchPage({...preset, query:[apiQuery, name].filter(Boolean).join(' ')}, '', sort, asc, signal, sections.length === 1 ? session : undefined)));
     const raw = mergeHits(pages.flatMap(page => page.hits));
     const required = preset.fullText === false ? [] : phrases(apiQuery);
     const accepted = hit => required.every(phrase =>
@@ -302,7 +316,7 @@
         Boolean(pages[0].order && pages[0].order === ({Fecha:'fechapublicacionorden',Titulo:'tituloorden',Autor:'autororden'})[sort]),
       unverifiedQuoted:unverified.slice(0,200), unverifiedQuotedTruncated:unverified.length > 200};
   };
-  const auxiliary = async (body, variant) => {
+  const auxiliary = async (body, variant, signal) => {
     const { preset, exclude = [] } = body;
     const query = normalizedQuery(preset.query);
     if (preset.fullText === false || !query) throw Error('La búsqueda auxiliar necesita una consulta OCR.');
@@ -332,12 +346,12 @@
     const maxPages = tokens.length === 1 ? (variant ? 4 : 1) : 2;
     const scan = async term => {
       const candidate = {...preset, query:term};
-      const first = await fetchSearchPage(candidate, '', 'Relevancia', false);
+      const first = await fetchSearchPage(candidate, '', 'Relevancia', false, signal);
       const hits = [...first.hits];
       let cursor = first.cursor;
       for (let index = 1; cursor && index < maxPages; index++) {
         try {
-          const next = await fetchSearchPage(candidate, cursor, 'Relevancia', false);
+          const next = await fetchSearchPage(candidate, cursor, 'Relevancia', false, signal);
           hits.push(...next.hits);
           if (next.cursor === cursor) break;
           cursor = next.cursor;
@@ -347,20 +361,21 @@
       }
       return {hits, cursor};
     };
-    for (let i = 0; i < queries.length; i += 3) {
-      const batch = await Promise.allSettled(queries.slice(i,i+3).map(scan));
-      for (const result of batch) {
-        if (result.status === 'rejected') { incomplete = true; firstError ||= result.reason; continue; }
-        successful++;
-        incomplete ||= Boolean(result.value.cursor);
-        for (const hit of result.value.hits) {
-          const key = hit.path+'|'+hit.position;
-          if (excluded.has(key)) continue;
-          const snippets = hit.snippets;
-          if (variant && !snippets.some(value => phraseMatches(value, phrase))) continue;
-          const prior = found.get(key);
-          found.set(key,{...hit,savedQuery:preset.query,snippets:[...new Set([...(prior?.snippets || []),...snippets])]});
-        }
+    // De una en una, como la APK: a la vez se ponen en cola en Galiciana (24, 38 y 46 s).
+    for (const term of queries) {
+      signal?.throwIfAborted();
+      const [result] = await Promise.allSettled([scan(term)]);
+      signal?.throwIfAborted();
+      if (result.status === 'rejected') { incomplete = true; firstError ||= result.reason; continue; }
+      successful++;
+      incomplete ||= Boolean(result.value.cursor);
+      for (const hit of result.value.hits) {
+        const key = hit.path+'|'+hit.position;
+        if (excluded.has(key)) continue;
+        const snippets = hit.snippets;
+        if (variant && !snippets.some(value => phraseMatches(value, phrase))) continue;
+        const prior = found.get(key);
+        found.set(key,{...hit,savedQuery:preset.query,snippets:[...new Set([...(prior?.snippets || []),...snippets])]});
       }
     }
     if (queries.length && !successful) throw firstError;
@@ -371,18 +386,8 @@
     return {...orderedResults(candidatesFound.slice(0,limit), query), incomplete:incomplete||truncated,truncated};
   };
   const base = 'https://biblioteca.galiciana.gal/es/';
-  const catalogueDoc = async (url, form = null) => {
-    let timeout;
-    try {
-      const html = await Promise.race([
-        rpc('catalogoReferencia', url, form),
-        new Promise((_, reject) => {
-          timeout = setTimeout(() => reject(Error('Galiciana está tardando demasiado en responder. Reintenta.')), 22000);
-        }),
-      ]);
-      return new DOMParser().parseFromString(html, 'text/html');
-    } finally { clearTimeout(timeout); }
-  };
+  const catalogueDoc = async (signal, url, form = null) =>
+    new DOMParser().parseFromString(await rpc(signal, 'catalogoReferencia', url, form), 'text/html');
   const nextLink = (doc, url) => {
     const href = doc.querySelector('#boton_siguiente[href], a[rel=next][href]')?.getAttribute('href');
     return href ? new URL(href, url).href : null;
@@ -401,9 +406,9 @@
     if (children[section.code]) section.children = children[section.code].map(([title,imageId,code]) =>
       ({title,imageId,code,filterCode:section.code+'_'+code}));
   }
-  const news = async () => {
+  const news = async signal => {
     const url = base + 'cms/coleccion.do?id=novedades%2Fnoticias';
-    const doc = await catalogueDoc(url);
+    const doc = await catalogueDoc(signal, url);
     const latest = new Map();
     for (const a of doc.querySelectorAll('#contenido a[href],#pagina_contenido a[href]')) {
       const link = new URL(a.getAttribute('href'),url);
@@ -419,11 +424,11 @@
     }
     return {latest:[...latest.values()]};
   };
-  const hemeroteca = async p => {
+  const hemeroteca = async (p, signal) => {
     const id = p.get('id'), year = p.get('year');
     if (id) {
       const url = base + 'publicaciones/numeros_por_mes.do?' + new URLSearchParams({idPublicacion:id, ...(year && year !== 'all' ? {anyo:year} : {})});
-      const doc = await catalogueDoc(url);
+      const doc = await catalogueDoc(signal, url);
       if (!year) return { years: [...new Set(Array.from(doc.querySelectorAll('a[href*="anyo="]'), a =>
         new URL(a.getAttribute('href'), url).searchParams.get('anyo')).filter(y => /^\d{4}$/.test(y || '')))].sort() };
       const issues = new Map();
@@ -459,7 +464,7 @@
     const index = base + 'publicaciones/listar_cabeceras.do';
     const letter = p.get('letter') || 'A';
     let url = p.get('url') || index + '?' + new URLSearchParams({letra:letter,posicion:'1'});
-    let doc = await catalogueDoc(url);
+    let doc = await catalogueDoc(signal, url);
     const query = p.get('q') || '';
     const q = fold(query);
     if (query && !p.get('url')) {
@@ -478,10 +483,10 @@
         fields.set('patron',query);
       }
       const action = new URL(form?.getAttribute('action') || index,url);
-      if (!field || form.method.toLowerCase() === 'post') doc = await catalogueDoc(action.href,fields.toString());
+      if (!field || form.method.toLowerCase() === 'post') doc = await catalogueDoc(signal, action.href,fields.toString());
       else {
         for (const [key,value] of fields) action.searchParams.set(key,value);
-        doc = await catalogueDoc(action.href);
+        doc = await catalogueDoc(signal, action.href);
       }
       url = action.href;
     }
@@ -513,7 +518,7 @@
       letras:Array.from('ABCDEFGHIJKLMNÑOPQRSTUVWXYZ', first => ({first,second:index+'?letra='+encodeURIComponent(first)+'&posicion=1'})),
       nextUrl};
   };
-  const collections = async p => {
+  const collections = async (p, signal) => {
     const code = p.get('code'), q = p.get('q');
     const section = sections.flatMap(item => [item,...(item.children || [])]).find(item => item.code === code);
     const listing = code === 'FOTOS' ? 'https://www.galiciana.gal/arpadhub/es/' : base;
@@ -522,7 +527,7 @@
     const post = !p.get('url') && q && code !== 'FOTOS' && section;
     const url = p.get('url') || (post ? base+'consulta/resultados_ocr.do' :
       listing+'consulta/resultados_busqueda.do?'+new URLSearchParams(filter));
-    const doc = await catalogueDoc(url,post ? new URLSearchParams({busq_general:q,
+    const doc = await catalogueDoc(signal, url,post ? new URLSearchParams({busq_general:q,
       ['secc_'+(section.filterCode || code)]:'on',busq_objetosmultimedia:'true',tipoResultados:'BIB'}).toString() : null);
     const works = [];
     for (const card of doc.querySelectorAll('.nav_registro')) {
@@ -541,8 +546,8 @@
     }
     return {works,nextUrl:nextLink(doc,url)};
   };
-  const record = async url => {
-    const doc = await catalogueDoc(url);
+  const record = async (url, signal) => {
+    const doc = await catalogueDoc(signal, url);
     const a = doc.querySelector('a[href*="grupo.do"][href*="path="]');
     const pub = doc.querySelector('a[href*="idPublicacion="]');
     const metadata = Array.from(doc.querySelectorAll('.ficha tr,#panel_ficha_dc tr'), row => {
@@ -554,17 +559,17 @@
       publicationId:pub ? new URL(pub.getAttribute('href'),url).searchParams.get('idPublicacion') : undefined};
   };
   let oaiToken;
-  const catalogueData = async p => {
+  const catalogueData = async (p, signal) => {
     if (p.get('kind') === 'sparql') {
       const url = 'https://datos-abertos.galiciana.gal/arpad-bibdix-lod/es/sparql?' +
         new URLSearchParams({query:p.get('q') || '',format:'application/sparql-results+json'});
-      return JSON.parse(await rpc('catalogoReferencia',url));
+      return JSON.parse(await rpc(signal, 'catalogoReferencia',url));
     }
     const next = p.get('next') === 'true';
     if (next && !oaiToken) throw Error('No quedan más registros.');
     const url = base + 'oai/oai.do?' + new URLSearchParams(next ?
       {verb:'ListRecords',resumptionToken:oaiToken} : {verb:'ListRecords',metadataPrefix:'oai_dc'});
-    const raw = await rpc('catalogoReferencia',url);
+    const raw = await rpc(signal, 'catalogoReferencia',url);
     oaiToken = xml(raw,'resumptionToken')[0]?.textContent.trim();
     const works = xml(raw,'record').flatMap(node => {
       const values = tag => Array.from(node.getElementsByTagNameNS('*',tag), el=>el.textContent.trim());
@@ -584,35 +589,36 @@
     }
     if (url.origin !== location.origin || !url.pathname.startsWith('/api/')) return fetchOriginal(input, init);
     const p = url.searchParams;
+    const signal = init?.signal;
     const path = p.get('path'), position = p.get('position'), id = p.get('imageId');
     try {
       switch (url.pathname) {
-        case '/api/search/variants': return json(await auxiliary(JSON.parse(init.body),true));
-        case '/api/search/recovery': return json(await auxiliary(JSON.parse(init.body),false));
-        case '/api/search': return json(await search(JSON.parse(init.body)));
+        case '/api/search/variants': return json(await auxiliary(JSON.parse(init.body),true, signal));
+        case '/api/search/recovery': return json(await auxiliary(JSON.parse(init.body),false, signal));
+        case '/api/search': return json(await search(JSON.parse(init.body), signal));
         case '/api/rank': {
           const { hits, query, sort, asc } = JSON.parse(init.body);
           return json(orderedResults(mergeHits(hits), normalizedQuery(query || ''), sort, asc, true));
         }
         case '/api/health': return json({ok:true,apiVersion:1,product:'Galiciana de Peto'});
-        case '/api/news': return json(await news());
+        case '/api/news': return json(await news(signal));
         case '/api/match': {
           const {text,query} = JSON.parse(init.body);
           const terms = new Set(words(query));
           return json({count:words(text).filter(word=>terms.has(word)).length,matches:matches(text,query)});
         }
-        case '/api/hemeroteca': return json(await hemeroteca(p));
+        case '/api/hemeroteca': return json(await hemeroteca(p, signal));
         case '/api/collections/sections': return json(sections);
-        case '/api/collections': return json(await collections(p));
-        case '/api/record': return json(await record(p.get('url')));
-        case '/api/data': return json(await catalogueData(p));
-        case '/api/work': return json(await work(path));
-        case '/api/page': return json(await page(path, position, id, p.get('query') || ''));
+        case '/api/collections': return json(await collections(p, signal));
+        case '/api/record': return json(await record(p.get('url'), signal));
+        case '/api/data': return json(await catalogueData(p, signal));
+        case '/api/work': return json(await work(path, signal));
+        case '/api/page': return json(await page(path, position, id, p.get('query') || '', signal));
         case '/api/media': {
-          const media = await rpc('imagenReferencia', p.get('url'));
+          const media = await rpc(signal, 'imagenReferencia', p.get('url'));
           return new Response(decode(media.base64), {headers:{'Content-Type':media.mime}});
         }
-        case '/api/image': return new Response(await image(path, position, id), {headers:{'Content-Type':'image/jpeg'}});
+        case '/api/image': return new Response(await image(path, position, id, signal), {headers:{'Content-Type':'image/jpeg'}});
         case '/api/archive/filter': {
           const { hits, query } = JSON.parse(init.body);
           return json({ hits: hits.filter(hit => matches([hit.title, hit.parentTitle, ...hit.snippets, hit.note].join(' '), query)) });
@@ -620,6 +626,7 @@
         default: return json({error:'Esta ruta aún no está disponible en Apps Script.'}, 501);
       }
     } catch (error) {
+      if (signal?.aborted) throw signal.reason;
       return json({ error: error.message || 'Galiciana no está disponible.' }, 502);
     }
   };

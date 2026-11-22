@@ -8,16 +8,17 @@ const mets = `<mets xmlns="http://www.loc.gov/METS/" xmlns:xlink="http://www.w3.
 const alto = `<alto><Layout><Page WIDTH="1000" HEIGHT="1400"><String CONTENT="mestre" HPOS="200" VPOS="300" WIDTH="120" HEIGHT="30"/><String CONTENT="canteiro" HPOS="330" VPOS="300" WIDTH="150" HEIGHT="30"/></Page></Layout></alto>`;
 const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1400"><rect width="1000" height="1400" fill="#eee"/></svg>';
 
-/** Responde a todo lo que no sea la propia web. `log` recoge lo que se pidió. */
-export async function simulate(context, log) {
+/** Responde a todo lo que no sea la propia web. `log` recoge lo que se pidió; `slow(query)`, cuánto tarda cada búsqueda. */
+export async function simulate(context, log, slow = () => 0) {
   await context.route(url => url.hostname !== '127.0.0.1', async route => {
     const request = route.request(), url = new URL(request.url());
     if (url.hostname === 'script.google.com') {
       const {name, args} = JSON.parse(request.postData());
-      log.push(name + (name === 'recursoReferencia' ? ':' + args[0] + ':' + args[2] : ''));
+      log.push(name + (name === 'recursoReferencia' ? ':' + args[0] + ':' + args[2] : name === 'buscarReferencia' ? ':' + args[0].query : ''));
+      if (name === 'buscarReferencia') { await new Promise(done => setTimeout(done, slow(args[0].query))); log.push('resposta:' + args[0].query); }
       const value = name === 'buscarReferencia' ? {estado: 200, html: results, cursor: null}
         : name === 'recursoReferencia' ? (args[0] === 'mets' ? {mets: b64(mets)} : args[0] === 'alto' ? {alto: b64(alto)} : args[0] === 'ocr' ? {ocr: b64('O mestre canteiro')} : undefined) : undefined;
-      return route.fulfill({json: value ? {ok: true, value} : {ok: false, error: 'simulado'}, headers: {'access-control-allow-origin': '*'}});
+      return route.fulfill({json: value ? {ok: true, value} : {ok: false, error: 'simulado'}, headers: {'access-control-allow-origin': '*'}}).catch(() => log.push('cancelada'));
     }
     if (url.pathname.endsWith('imagen_id.do')) {
       log.push('imaxe:' + url.searchParams.get('idImagen'));

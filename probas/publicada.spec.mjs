@@ -128,6 +128,60 @@ test('buscar, abrir una página y saltar con un chip', async ({app, context}) =>
   await page.goBack();
   await expect(page.locator('.hit')).toHaveCount(2);
 });
+const busca = async (page, text) => {
+  await page.getByRole('textbox', {name: 'A túa busca'}).fill(text);
+  await page.getByRole('textbox', {name: 'A túa busca'}).press('Enter');
+};
+test('una búsqueda que se deja a medias no se pide dos veces y avisa si tarda', async ({app, context}) => {
+  const log = []; await simulate(context, log, () => 8500);
+  const {page} = app;
+  await page.goto(app.site.url); await app.ready();
+  await busca(page, 'mestre');
+  await page.waitForTimeout(500);
+  await page.goBack(); await app.ready();
+  await busca(page, 'mestre');
+  await expect(page.getByText('A primeira vez pode tardar medio minuto')).toBeVisible({timeout: 8000});
+  await expect(page.locator('.hit')).toHaveCount(2);
+  await expect(page.getByText('A primeira vez pode tardar medio minuto')).toHaveCount(0);
+  expect(log.filter(x => x === 'buscarReferencia:mestre')).toHaveLength(1);
+});
+test('una búsqueda hecha se abre al momento al volver, y se borra con las recientes', async ({app, context}) => {
+  const log = []; let wait = 0; await simulate(context, log, () => wait);
+  const {page} = app;
+  await page.goto(app.site.url); await app.ready();
+  await busca(page, 'mestre'); await expect(page.locator('.hit')).toHaveCount(2);
+  wait = 6000;
+  await page.waitForTimeout(400); await page.goBack(); await app.ready(); await page.reload(); await app.ready();
+  await busca(page, 'mestre');
+  await expect(page.locator('.hit')).toHaveCount(2, {timeout: 2000});
+  // Y se refresca por detrás, sin vaciar la lista.
+  expect(log.at(-1)).toBe('buscarReferencia:mestre');
+  await expect.poll(() => log.at(-1), {timeout: 8000}).toBe('resposta:mestre');
+  await expect(page.locator('.hit')).toHaveCount(2);
+  await expect(page.locator('.m3-linear-progress')).toHaveCount(0);
+  const kept = () => page.evaluate(() => new Promise(done => { const o = indexedDB.open('gdp-buscas', 1); o.onsuccess = () => { const r = o.result.transaction('buscas').objectStore('buscas').count(); r.onsuccess = () => { o.result.close(); done(r.result); }; }; }));
+  expect(await kept()).toBe(1);
+  await page.goBack(); await app.ready();
+  await page.goto(app.site.url + '#screen=history');
+  await page.getByText('Recentes', {exact: true}).first().click();
+  await page.getByText('Borrar recentes', {exact: true}).first().click();
+  await page.getByText('Borrar recentes', {exact: true}).last().click();
+  await expect.poll(kept).toBe(0);
+});
+test('las variantes van de una en una y se paran al salir', async ({app, context}) => {
+  const log = []; await simulate(context, log, text => text.startsWith('"') ? 0 : 1200);
+  const {page} = app;
+  await page.goto(app.site.url); await app.ready();
+  await busca(page, '"mestre canteiro vello"');
+  await expect(page.getByText('Comprobando outras grafías no OCR…')).toBeVisible();
+  await expect.poll(() => log.filter(x => x.startsWith('buscarReferencia')).length).toBeGreaterThan(2);
+  const pedidas = log.filter(x => x.startsWith('buscarReferencia:') && !x.includes('"')).length, respondidas = log.filter(x => x.startsWith('resposta:') && !x.includes('"')).length;
+  expect(pedidas - respondidas).toBeLessThanOrEqual(1);
+  await page.goBack(); await app.ready();
+  await page.waitForTimeout(300); const antes = log.filter(x => x.startsWith('buscarReferencia')).length;
+  await page.waitForTimeout(3500);
+  expect(log.filter(x => x.startsWith('buscarReferencia')).length).toBe(antes);
+});
 test('todo lo que nombra el service worker existe', async ({site, request}) => {
   const worker = await (await request.get(site.url + 'sw.js')).text();
   for (const [, path] of worker.matchAll(/"(\.\/[^"]*)"/g)) expect((await request.get(new URL(path, site.url).href)).status(), path).toBe(200);
