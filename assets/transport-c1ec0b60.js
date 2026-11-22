@@ -580,7 +580,7 @@
   globalThis.fetch = async (input, init) => {
     const url = new URL(input instanceof Request ? input.url : input, location.href);
     if (url.origin === location.origin && url.pathname === '/fonts/NotoSans-Regular.ttf') {
-      return fetchOriginal(new URL('fonts/NotoSans-Regular.ttf', document.baseURI));
+      return fetchOriginal(new URL('fonts/NotoSans-Regular-b85c38ec.ttf', document.baseURI));
     }
     if (url.origin !== location.origin || !url.pathname.startsWith('/api/')) return fetchOriginal(input, init);
     const p = url.searchParams;

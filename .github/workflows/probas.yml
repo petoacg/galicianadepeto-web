@@ -1,0 +1,23 @@
+# Proba a web publicada en cada cambio. Non chama a Galiciana nin ao script de Google.
+name: Probas
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+        working-directory: probas
+      - run: npx playwright install --with-deps chromium
+        working-directory: probas
+      - run: npm test
+        working-directory: probas
