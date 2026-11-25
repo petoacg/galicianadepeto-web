@@ -216,6 +216,30 @@ test('con reducir movimiento la página sigue al dedo', async ({web: {page, open
   expect(await page.locator('.viewer-viewport').evaluate(el => new DOMMatrixReadOnly(getComputedStyle(el).transform).m41)).toBeLessThan(-80);
   await touch('touchEnd');
 });
+// DESIGN.md › Movimiento (web): reducir movimiento es más suave, no nada; la barra de carga no se para.
+test('con reducir movimiento la barra de carga sigue y la hoja aparece con un fundido', async ({web: {page, open}}) => {
+  await open(visor); await expect(page).toHaveTitle(`${obra.title}, páx. 2 · Galiciana de Peto`);
+  expect(await page.evaluate(() => { const bar = document.createElement('div'); bar.className = 'm3-linear-progress'; document.body.append(bar);
+    const name = getComputedStyle(bar, '::after').animationName; bar.remove(); return name; })).toBe('m3-linear');
+  await page.getByRole('button', {name: /Accións desta páxina/}).click();
+  const sheet = page.locator('.m3-sheet'); await expect(sheet).toBeVisible();
+  expect(await sheet.evaluate(el => getComputedStyle(el).animationName)).toBe('m3-scrim-in');
+});
+
+// DESIGN.md › Movimiento (web): ninguna animación hace esperar; la pantalla nueva responde mientras llega.
+test('al cambiar de pantalla, un toque durante la llegada no se pierde', async ({web: {page, open}}) => {
+  await page.emulateMedia({reducedMotion: 'no-preference'});
+  await open('#screen=home'); const tabs = page.locator('.bottom-nav button'); await expect(tabs).toHaveCount(3);
+  const home = await tabs.nth(0).boundingBox();
+  await tabs.nth(1).click(); await page.waitForTimeout(50);
+  // Antes, mientras la pantalla nueva llegaba, la página era una imagen y el toque se perdía. Y lo
+  // que llega de lado no ensancha la página, que en el móvil movería la barra de abajo.
+  expect(await page.evaluate(() => document.getElementById('main').getAnimations().length)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize().width);
+  await page.mouse.click(home.x + home.width / 2, home.y + home.height / 2);
+  await expect(page).toHaveURL(/screen=home/);
+});
+
 test('desde la búsqueda, las páginas sin número abren con su número y se pasan', async ({web: {page, open}}) => {
   await open('#screen=search&preset=' + encodeURIComponent(JSON.stringify({query: 'canteiro portada', fullText: true})));
   // Galiciana no les pone número: sale del índice de la obra, y cada una queda por separado.
