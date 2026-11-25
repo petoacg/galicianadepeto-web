@@ -243,7 +243,9 @@ test('en una obra sin texto no se pide ni se ofrece revisarlo', async ({app, con
   await expect(page.getByRole('button', {name: 'Reintentar'})).toHaveCount(0);
   expect(log.filter(x => /:(alto|ocr):/.test(x))).toEqual([]);
 });
-test('lo guardado y sus notas se abren sin conexión', async ({app, context}) => {
+test('lo guardado y sus notas se abren sin conexión', async ({app, context, browserName}) => {
+  // En WebKit, Playwright no intercepta lo que pide el service worker: buscaría en la Galiciana real.
+  test.skip(browserName === 'webkit', 'WebKit no simula la red tras el service worker');
   const log = []; await simulate(context, log);
   const {page} = app;
   await page.goto(app.site.url); await app.ready(); await app.controlled();

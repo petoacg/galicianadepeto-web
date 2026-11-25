@@ -3,12 +3,16 @@ import {test as base, expect} from '@playwright/test';
 import {fileURLToPath} from 'node:url';
 import {serve} from './servidor.mjs';
 import {obra, simulate} from './galiciana.mjs';
+// WebKit en el Mac, como Safari, sólo pasa por botones y enlaces con Opción+Tab (Tab va de campo en campo).
+let TAB = 'Tab', SHIFT_TAB = 'Shift+Tab';
+base.beforeEach(({browserName}) => { if (browserName === 'webkit' && process.platform === 'darwin') { TAB = 'Alt+Tab'; SHIFT_TAB = 'Alt+Shift+Tab'; } });
 const root = fileURLToPath(new URL(process.env.GDP_SITE ?? '../', import.meta.url));
 const test = base.extend({
   instalada: [true, {option: true}],
   web: async ({context, page, instalada}, use) => {
     const site = await serve(root), errors = [], log = [];
-    page.on('pageerror', error => errors.push(String(error)));
+    // WebKit da por fallo de CORS una petición simulada que se corta al recargar la página; la app no la ve.
+    page.on('pageerror', error => { if (!/due to access control checks/.test(String(error))) errors.push(String(error)); });
     if (instalada) await page.addInitScript(() => { const original = window.matchMedia.bind(window);
       window.matchMedia = query => /display-mode:\s*standalone/.test(query) ? original('all') : original(query); });
     await simulate(context, log);
@@ -24,7 +28,7 @@ const dentro = (page, selector) => page.evaluate(s => !!document.activeElement.c
 /** Tab y Mayús+Tab, más veces que controles hay: el foco no sale y lo de detrás no responde. */
 async function encerrado(page, selector, veces = 30) {
   expect(await dentro(page, selector)).toBe(true);
-  for (let i = 0; i < veces; i++) { await page.keyboard.press(i < veces * .7 ? 'Tab' : 'Shift+Tab'); expect(await dentro(page, selector)).toBe(true); }
+  for (let i = 0; i < veces; i++) { await page.keyboard.press(i < veces * .7 ? TAB : SHIFT_TAB); expect(await dentro(page, selector)).toBe(true); }
 }
 async function cabe(page) {
   const box = await page.getByRole('menu').boundingBox(), {width, height} = page.viewportSize();
@@ -34,7 +38,7 @@ async function cabe(page) {
 /** Abre con el teclado y cierra de las tres maneras; siempre en la misma pantalla y con el foco en su botón. */
 async function seCierra(page, button, title) {
   const menu = page.getByRole('menu'), url = page.url();
-  for (const close of [() => page.keyboard.press('Escape'), () => page.goBack(), () => page.mouse.click(4, page.viewportSize().height - 4), () => page.keyboard.press('Tab')]) {
+  for (const close of [() => page.keyboard.press('Escape'), () => page.goBack(), () => page.mouse.click(4, page.viewportSize().height - 4), () => page.keyboard.press(TAB)]) {
     await button.focus(); await page.keyboard.press('Enter');
     await expect(menu).toBeVisible(); await cabe(page);
     expect(await dentro(page, '[role=menu]')).toBe(true);
@@ -182,9 +186,33 @@ test.describe('sin instalar', () => {
   test('la portada es lo único que hay: ni foco detrás ni miniaturas', async ({web: {page, log, open}}) => {
     const thumbs = []; page.on('request', r => { if (/object-miniature|imagen_id/.test(r.url())) thumbs.push(r.url()); });
     await open(); await expect(page.locator('.install-gate')).toBeVisible();
-    for (let i = 0; i < 8; i++) { await page.keyboard.press('Tab'); expect(await page.evaluate(() => document.activeElement === document.body || !!document.activeElement.closest('.install-gate'))).toBe(true); }
+    for (let i = 0; i < 8; i++) { await page.keyboard.press(TAB); expect(await page.evaluate(() => document.activeElement === document.body || !!document.activeElement.closest('.install-gate'))).toBe(true); }
     await page.waitForTimeout(800); expect(thumbs).toEqual([]); expect(log).toEqual([]);
     await page.getByRole('button', {name: 'Seguir no navegador'}).press('Enter');
     await expect(page.getByRole('heading', {name: 'Busca en Galiciana'})).toBeFocused();
   });
+});
+
+// DESIGN.md › Movimiento (web): con el teclado nada se anima, y dos Intro seguidos pasan dos páginas.
+test('con el teclado no se anima nada y no se pierde ninguna tecla', async ({web: {page, open}}) => {
+  await open(visor); await expect(page).toHaveTitle(`${obra.title}, páx. 2 · Galiciana de Peto`);
+  await page.getByRole('button', {name: /Accións desta páxina/}).press('Enter');
+  const sheet = page.locator('.m3-sheet'); await expect(sheet).toBeVisible();
+  expect(await sheet.evaluate(el => el.getAnimations().length)).toBe(0);
+  await page.keyboard.press('Escape'); await expect(sheet).toHaveCount(0);
+  const next = page.getByRole('button', {name: /^Seguinte/}).first();
+  await next.focus(); await page.keyboard.press('Enter'); await page.keyboard.press('Enter');
+  await expect(page).toHaveTitle(`${obra.title}, páx. 4 · Galiciana de Peto`);
+});
+
+// DESIGN.md › Movimiento (web): con «reducir movimiento» la página sigue al dedo; sólo el final no se anima.
+test('con reducir movimiento la página sigue al dedo', async ({web: {page, open}, browserName}) => {
+  test.skip(browserName !== 'chromium', 'los toques simulados van por CDP');
+  await page.emulateMedia({reducedMotion: 'reduce'});
+  await open(visor); await expect(page).toHaveTitle(`${obra.title}, páx. 2 · Galiciana de Peto`);
+  const cdp = await page.context().newCDPSession(page), box = await page.locator('.viewer-viewport').boundingBox(), y = box.y + box.height / 2;
+  const touch = (type, x) => cdp.send('Input.dispatchTouchEvent', {type, touchPoints: x === undefined ? [] : [{x, y, id: 0}]});
+  await touch('touchStart', 330); for (let x = 320; x >= 230; x -= 10) await touch('touchMove', x);
+  expect(await page.locator('.viewer-viewport').evaluate(el => new DOMMatrixReadOnly(getComputedStyle(el).transform).m41)).toBeLessThan(-80);
+  await touch('touchEnd');
 });

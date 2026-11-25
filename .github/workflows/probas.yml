@@ -9,7 +9,7 @@ permissions:
 jobs:
   web:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,7 +17,10 @@ jobs:
           node-version: 22
       - run: npm ci --no-audit --no-fund
         working-directory: probas
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium webkit
         working-directory: probas
       - run: npm test
+        working-directory: probas
+      # WebKit es el motor de Safari en iPhone.
+      - run: npx playwright test -c webkit.config.mjs
         working-directory: probas
