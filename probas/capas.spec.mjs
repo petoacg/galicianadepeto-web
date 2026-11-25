@@ -216,3 +216,13 @@ test('con reducir movimiento la página sigue al dedo', async ({web: {page, open
   expect(await page.locator('.viewer-viewport').evaluate(el => new DOMMatrixReadOnly(getComputedStyle(el).transform).m41)).toBeLessThan(-80);
   await touch('touchEnd');
 });
+test('desde la búsqueda, las páginas sin número abren con su número y se pasan', async ({web: {page, open}}) => {
+  await open('#screen=search&preset=' + encodeURIComponent(JSON.stringify({query: 'canteiro portada', fullText: true})));
+  // Galiciana no les pone número: sale del índice de la obra, y cada una queda por separado.
+  for (const n of [3, 4]) await expect(page.getByRole('button', {name: `Abrir a páxina ${n}`, exact: true})).toBeVisible();
+  await expect(page.getByText(/páxina (null|–)/i)).toHaveCount(0);
+  await page.getByRole('button', {name: 'Abrir a páxina 4', exact: true}).click();
+  await expect(page.getByRole('button', {name: /^4 \/ 6/})).toBeVisible();
+  await page.getByRole('button', {name: 'Seguinte', exact: true}).click();
+  await expect(page.getByRole('button', {name: /^5 \/ 6/})).toBeVisible();
+});

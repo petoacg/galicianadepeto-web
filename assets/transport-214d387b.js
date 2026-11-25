@@ -274,7 +274,7 @@
       const link = file.getElementsByTagNameNS('*', 'FLocat')[0];
       return [file.getAttribute('ID'), link?.getAttributeNS('http://www.w3.org/1999/xlink', 'href') || link?.getAttribute('href') || ''];
     }));
-    const imageId = href => href?.match(/(?:imagen_id\.do\?[^\s]*?idImagen=|object-miniature\.do\?id=)(\d+)/i)?.[1];
+    const imageId = href => href?.match(/(?:imagen_id\.(?:do|cmd)\?[^\s]*?idImagen=|object-miniature\.do\?id=)(\d+)/i)?.[1];
     const leaves = xml(source, 'div').filter(div => !div.getElementsByTagNameNS('*', 'div').length)
       .sort((a, b) => Number(a.getAttribute('ORDER') || Infinity) - Number(b.getAttribute('ORDER') || Infinity));
     const images = new Map();
@@ -509,6 +509,20 @@
     const totalWorks = total === undefined ? null : Number(total.replaceAll('.', ''));
     if (!hits.length && !empty.test(doc.body.textContent) && totalWorks !== 0) {
       throw Error('Galiciana no ha devuelto una página de resultados reconocible. Vuelve a intentarlo.');
+    }
+    // Galiciana escribe «Página -» o «Página [Cuberta]» en las páginas sin número impreso, y entonces
+    // el enlace sólo trae la imagen. Su número sale del índice de la obra; sin él, «path|null» juntaría
+    // en un resultado todas esas páginas de la misma obra. Tope de 4 s: si no llega, el visor lo corrige.
+    const unknown = [...new Set(hits.filter(hit => !hit.position && hit.imageId).map(hit => hit.path))];
+    if (unknown.length) {
+      const indexes = new Map();
+      await Promise.race([
+        Promise.all(unknown.map(path => work(path, signal).then(w => indexes.set(path, w)).catch(() => {}))),
+        new Promise(resolve => setTimeout(resolve, 4000)),
+      ]);
+      for (const hit of hits) if (!hit.position) {
+        hit.position = indexes.get(hit.path)?.pages.find(p => p.imageId === hit.imageId)?.position || null;
+      }
     }
     return {hits, cursor:data.cursor, totalWorks, order:data.ordenAplicado};
   };
@@ -802,7 +816,7 @@
     const pub = doc.querySelector('a[href*="idPublicacion="]');
     const photo = url.startsWith('https://www.galiciana.gal/arpadhub/');
     return {sourceUrl:url,description:'',metadata:catalogueMetadata(doc),
-      ...(photo ? {imageUrl:doc.documentElement.outerHTML.replaceAll('&amp;','&').match(/https:\/\/(?:arquivo\.galiciana\.gal\/arpadweb|biblioteca\.galiciana\.gal)\/[^\s<>"]+\/catalogo_imagenes\/imagen_id\.do\?idImagen=\d+/)?.[0]} : {}),
+      ...(photo ? {imageUrl:doc.documentElement.outerHTML.replaceAll('&amp;','&').match(/https:\/\/(?:arquivo\.galiciana\.gal\/arpadweb|biblioteca\.galiciana\.gal)\/[^\s<>"]+\/catalogo_imagenes\/imagen_id\.(?:do|cmd)\?idImagen=\d+/)?.[0]} : {}),
       path:photo ? undefined : digitalCopy(doc,url),
       publicationId:pub ? new URL(pub.getAttribute('href'),url).searchParams.get('idPublicacion') : undefined};
   };
