@@ -241,12 +241,15 @@ test('con reducir movimiento la barra de carga sigue y la hoja aparece con un fu
 // DESIGN.md › Movimiento (web): ninguna animación hace esperar; la pantalla nueva responde mientras llega.
 test('al cambiar de pantalla, un toque durante la llegada no se pierde', async ({web: {page, open}}) => {
   await page.emulateMedia({reducedMotion: 'no-preference'});
+  // Counts the arrivals started on #main: on a slow machine the animation may already be over when looked at.
+  await page.addInitScript(() => { window.arrivals = 0; const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args) { if (this.id === 'main') window.arrivals++; return animate.apply(this, args); }; });
   await open('#screen=home'); const tabs = page.locator('.bottom-nav button'); await expect(tabs).toHaveCount(3);
   const home = await tabs.nth(0).boundingBox();
   await tabs.nth(1).click(); await page.waitForTimeout(50);
   // Antes, mientras la pantalla nueva llegaba, la página era una imagen y el toque se perdía. Y lo
   // que llega de lado no ensancha la página, que en el móvil movería la barra de abajo.
-  expect(await page.evaluate(() => document.getElementById('main').getAnimations().length)).toBeGreaterThan(0);
+  await expect.poll(() => page.evaluate(() => window.arrivals)).toBeGreaterThan(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize().width);
   await page.mouse.click(home.x + home.width / 2, home.y + home.height / 2);
   await expect(page).toHaveURL(/screen=home/);
@@ -265,7 +268,8 @@ test('compartir hacia la app busca; compartir una página usa el menú del siste
   expect(data.title).toBe(`${obra.title}, páx. 2`);
   expect(data.url).toContain('#screen=viewer'); expect(data.url).not.toContain('quiet');
   expect(data.text).toContain('galiciana.gal');
-  await open(visor + '&quiet=1'); await page.reload();
+  // A fresh load, not a reload: with the sheet just closed, a slow machine may rewrite the address first.
+  await page.goto('about:blank'); await open(visor + '&quiet=1');
   await expect(page.locator('meta[name=theme-color]')).toHaveAttribute('content', '#1C1A17');
   await open('?text=' + encodeURIComponent('mestre canteiro https://exemplo.gal/artigo') + '&title=Artigo');
   await expect(page).toHaveTitle('Resultados: mestre canteiro · Galiciana de Peto');
