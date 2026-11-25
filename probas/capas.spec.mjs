@@ -183,9 +183,21 @@ test('las referencias salen en gallego', async ({web: {page, open}}) => {
 });
 test.describe('sin instalar', () => {
   test.use({instalada: false});
-  test('la portada es lo único que hay: ni foco detrás ni miniaturas', async ({web: {page, log, open}}) => {
+  // DESIGN.md › Como una app instalada: la web se usa sin instalar; instalar se ofrece, no se exige.
+  test('sin instalar se entra directamente en Buscar, con la invitación a instalar', async ({web: {page, open}}) => {
+    await open(); await expect(page.getByRole('heading', {name: 'Busca en Galiciana'})).toBeVisible();
+    await expect(page.locator('.install-gate')).toHaveCount(0);
+    await expect(page.getByRole('heading', {name: 'Instala GdPeto'})).toBeVisible();
+    await page.getByRole('button', {name: 'Agora non'}).click();
+    await expect(page.getByRole('heading', {name: 'Instala GdPeto'})).toHaveCount(0);
+  });
+  test('tras la primera búsqueda con resultados se ofrece instalar, una vez por visita', async ({web: {page, open}}) => {
+    await open(resultados); await expect(page.locator('.m3-snackbar')).toContainText('Instalada vai mellor');
+    await expect(page.locator('.m3-snackbar').getByRole('button', {name: 'Instalar'})).toBeVisible();
+  });
+  test('la pantalla de instalar es lo único que hay: ni foco detrás ni miniaturas', async ({web: {page, log, open}}) => {
     const thumbs = []; page.on('request', r => { if (/object-miniature|imagen_id/.test(r.url())) thumbs.push(r.url()); });
-    await open(); await expect(page.locator('.install-gate')).toBeVisible();
+    await open('?instalar'); await expect(page.locator('.install-gate')).toBeVisible();
     for (let i = 0; i < 8; i++) { await page.keyboard.press(TAB); expect(await page.evaluate(() => document.activeElement === document.body || !!document.activeElement.closest('.install-gate'))).toBe(true); }
     await page.waitForTimeout(800); expect(thumbs).toEqual([]); expect(log).toEqual([]);
     await page.getByRole('button', {name: 'Seguir no navegador'}).press('Enter');
@@ -251,7 +263,8 @@ test('compartir hacia la app busca; compartir una página usa el menú del siste
   await expect.poll(() => page.evaluate(() => window.shared.length)).toBe(1);
   const [data] = await page.evaluate(() => window.shared);
   expect(data.title).toBe(`${obra.title}, páx. 2`);
-  expect(data.url).toContain('galiciana.gal');
+  expect(data.url).toContain('#screen=viewer'); expect(data.url).not.toContain('quiet');
+  expect(data.text).toContain('galiciana.gal');
   await open(visor + '&quiet=1'); await page.reload();
   await expect(page.locator('meta[name=theme-color]')).toHaveAttribute('content', '#1C1A17');
   await open('?text=' + encodeURIComponent('mestre canteiro https://exemplo.gal/artigo') + '&title=Artigo');
@@ -268,4 +281,18 @@ test('desde la búsqueda, las páginas sin número abren con su número y se pas
   await expect(page.getByRole('button', {name: /^4 \/ 6/})).toBeVisible();
   await page.getByRole('button', {name: 'Seguinte', exact: true}).click();
   await expect(page.getByRole('button', {name: /^5 \/ 6/})).toBeVisible();
+});
+
+// DESIGN.md › Colors: la app sigue el modo del teléfono; el visor es siempre oscuro.
+test.describe('modo claro', () => {
+  test.use({colorScheme: 'light'});
+  test('las pantallas son claras y el visor sigue oscuro', async ({web: {page, open}}) => {
+    await open(); await expect(page.getByRole('heading', {name: 'Busca en Galiciana'})).toBeVisible();
+    const fondo = () => page.evaluate(() => getComputedStyle(document.querySelector('.native-home')).backgroundColor);
+    expect(await fondo()).toBe('rgb(241, 245, 249)');
+    await expect(page.locator('meta[name=theme-color]')).toHaveAttribute('content', '#FBFDFF');
+    await open(visor); await expect(page.locator('.native-viewer')).toBeVisible();
+    expect(await page.evaluate(() => getComputedStyle(document.querySelector('.native-viewer .viewer-top')).backgroundColor)).toBe('rgb(21, 34, 45)');
+    await expect(page.locator('meta[name=theme-color]')).toHaveAttribute('content', '#15222D');
+  });
 });

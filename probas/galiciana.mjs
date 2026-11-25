@@ -22,6 +22,8 @@ export async function simulate(context, log, slow = () => 0, options = {}) {
     const request = route.request(), url = new URL(request.url());
     if (url.hostname === 'script.google.com') {
       const {name, args} = JSON.parse(request.postData());
+      // The warm-up when the search field gets focus (api.ts warmUp): answered like Apps Script, not logged.
+      if (name === 'calentar') return route.fulfill({json: {ok: false, error: 'Operación no admitida.'}, headers: {'access-control-allow-origin': '*'}}).catch(() => {});
       log.push(name + (name === 'recursoReferencia' ? ':' + args[0] + ':' + args[2] : name === 'buscarReferencia' ? ':' + args[0].query : ''));
       if (name === 'buscarReferencia') { await new Promise(done => setTimeout(done, slow(args[0].query))); log.push('resposta:' + args[0].query); }
       const value = name === 'buscarReferencia' ? {estado: 200, html: resultsFor(args[0].query), cursor: null}
