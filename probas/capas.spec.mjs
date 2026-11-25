@@ -299,5 +299,9 @@ test.describe('modo claro', () => {
     // La barra es vidrio del color del visor (#15222D al 80 % sobre la sala): la barra de estado lleva esa mezcla, #162029.
     expect(await page.evaluate(() => getComputedStyle(document.querySelector('.native-viewer .viewer-top')).backgroundColor)).toMatch(/21, 34, 45|0\.0823\d* 0\.1333\d* 0\.1764\d*/);
     await expect(page.locator('meta[name=theme-color]')).toHaveAttribute('content', '#162029');
+    // El texto del visor usa su propia tinta clara, no la oscura del modo claro que hereda de la página.
+    const titulo = page.locator('.native-viewer .viewer-heading strong');
+    await expect(titulo).toHaveText(obra.title);
+    expect(await titulo.evaluate(el => getComputedStyle(el).color)).toBe('rgb(229, 237, 243)');
   });
 });
