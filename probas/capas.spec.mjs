@@ -240,6 +240,25 @@ test('al cambiar de pantalla, un toque durante la llegada no se pierde', async (
   await expect(page).toHaveURL(/screen=home/);
 });
 
+// Como una app instalada: lo que se comparte desde otra app abre como búsqueda (sin sus enlaces),
+// la página se comparte con el menú del sistema y, leyendo sin controles, la barra de estado es la página.
+test('compartir hacia la app busca; compartir una página usa el menú del sistema', async ({web: {page, open}}) => {
+  await page.addInitScript(() => { window.shared = []; navigator.share = data => { window.shared.push(data); return Promise.resolve(); }; });
+  await open(visor); await expect(page).toHaveTitle(`${obra.title}, páx. 2 · Galiciana de Peto`);
+  await expect(page.locator('meta[name=theme-color]')).toHaveAttribute('content', '#15222D');
+  await page.getByRole('button', {name: 'Accións desta páxina'}).click();
+  await page.getByRole('button', {name: /Compartir páxina/}).click();
+  await expect.poll(() => page.evaluate(() => window.shared.length)).toBe(1);
+  const [data] = await page.evaluate(() => window.shared);
+  expect(data.title).toBe(`${obra.title}, páx. 2`);
+  expect(data.url).toContain('galiciana.gal');
+  await open(visor + '&quiet=1'); await page.reload();
+  await expect(page.locator('meta[name=theme-color]')).toHaveAttribute('content', '#1C1A17');
+  await open('?text=' + encodeURIComponent('mestre canteiro https://exemplo.gal/artigo') + '&title=Artigo');
+  await expect(page).toHaveTitle('Resultados: mestre canteiro · Galiciana de Peto');
+  expect(new URL(page.url()).searchParams.has('text')).toBe(false);
+});
+
 test('desde la búsqueda, las páginas sin número abren con su número y se pasan', async ({web: {page, open}}) => {
   await open('#screen=search&preset=' + encodeURIComponent(JSON.stringify({query: 'canteiro portada', fullText: true})));
   // Galiciana no les pone número: sale del índice de la obra, y cada una queda por separado.
