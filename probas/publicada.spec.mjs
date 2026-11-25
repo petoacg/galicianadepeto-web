@@ -119,9 +119,9 @@ test('buscar, abrir una página y saltar con un chip', async ({app, context}) =>
   await expect(page.locator('h1.viewer-title')).toContainText(obra.title);
   await expect(page.getByText('Páxina 2 de 6')).toBeVisible();
   await expect(page.locator('.ocr-overlay rect').first()).toBeVisible();
-  // Sólo la página y sus vecinas: nunca la del otro chip.
+  // La página y sus vecinas, y la del segundo resultado, que se leyó por adelantado desde la lista. Ninguna más.
   await page.waitForTimeout(1600);
-  expect([...new Set(log.filter(x => x.startsWith('imaxe:')))].sort()).toEqual(['imaxe:7001', 'imaxe:7002', 'imaxe:7003']);
+  expect([...new Set(log.filter(x => x.startsWith('imaxe:')))].sort()).toEqual(['imaxe:7001', 'imaxe:7002', 'imaxe:7003', 'imaxe:7005']);
   await page.locator('.match-page-chip', {hasText: '5'}).click();
   await expect(page.getByText('Páxina 5 de 6')).toBeVisible();
   await expect(page.locator('.facsimile img').first()).toBeVisible();
@@ -154,9 +154,10 @@ test('una búsqueda hecha se abre al momento al volver, y se borra con las recie
   await page.waitForTimeout(400); await page.goBack(); await app.ready(); await page.reload(); await app.ready();
   await busca(page, 'mestre');
   await expect(page.locator('.hit')).toHaveCount(2, {timeout: 2000});
-  // Y se refresca por detrás, sin vaciar la lista.
-  expect(log.at(-1)).toBe('buscarReferencia:mestre');
-  await expect.poll(() => log.at(-1), {timeout: 8000}).toBe('resposta:mestre');
+  // Y se refresca por detrás, sin vaciar la lista (los primeros resultados se leen por adelantado mientras tanto).
+  const busca_ = () => log.filter(x => /^(buscarReferencia|resposta):/.test(x)).at(-1);
+  expect(busca_()).toBe('buscarReferencia:mestre');
+  await expect.poll(busca_, {timeout: 8000}).toBe('resposta:mestre');
   await expect(page.locator('.hit')).toHaveCount(2);
   await expect(page.locator('.m3-linear-progress')).toHaveCount(0);
   const kept = () => page.evaluate(() => new Promise(done => { const o = indexedDB.open('gdp-buscas', 1); o.onsuccess = () => { const r = o.result.transaction('buscas').objectStore('buscas').count(); r.onsuccess = () => { o.result.close(); done(r.result); }; }; }));
@@ -214,8 +215,8 @@ test('abrir otra página no pide el texto, que se pide al abrirlo; y un fallo no
   await expect(page.locator('.ocr-overlay rect').first()).toBeVisible();
   await page.waitForTimeout(1600);
   expect(log.filter(x => x.startsWith('recursoReferencia:ocr'))).toEqual([]);
-  // Las marcas de la siguiente se leen por adelantado; volver no las pide otra vez.
-  expect(log.filter(x => x.startsWith('recursoReferencia:alto'))).toEqual(['recursoReferencia:alto:2', 'recursoReferencia:alto:3']);
+  // Las marcas de la siguiente se leen por adelantado, y las del segundo resultado desde la lista; la abierta, una sola vez.
+  expect(log.filter(x => x.startsWith('recursoReferencia:alto')).sort()).toEqual(['recursoReferencia:alto:2', 'recursoReferencia:alto:3', 'recursoReferencia:alto:5']);
   await page.getByRole('button', {name: 'Seguinte', exact: true}).click();
   await expect(page.getByText('Páxina 3 de 6')).toBeVisible();
   await page.waitForTimeout(700);
