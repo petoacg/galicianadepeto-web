@@ -228,11 +228,11 @@ test('con reducir movimiento la página sigue al dedo', async ({web: {page, open
   expect(await page.locator('.viewer-viewport').evaluate(el => new DOMMatrixReadOnly(getComputedStyle(el).transform).m41)).toBeLessThan(-80);
   await touch('touchEnd');
 });
-// DESIGN.md › Movimiento (web): reducir movimiento es más suave, no nada; la barra de carga no se para.
-test('con reducir movimiento la barra de carga sigue y la hoja aparece con un fundido', async ({web: {page, open}}) => {
+// DESIGN.md › Movimiento (web): reducir movimiento es más suave, no nada; la barra de carga no se para, pero respira en vez de deslizarse.
+test('con reducir movimiento la barra de carga respira sin deslizarse y la hoja aparece con un fundido', async ({web: {page, open}}) => {
   await open(visor); await expect(page).toHaveTitle(`${obra.title}, páx. 2 · Galiciana de Peto`);
   expect(await page.evaluate(() => { const bar = document.createElement('div'); bar.className = 'm3-linear-progress'; document.body.append(bar);
-    const name = getComputedStyle(bar, '::after').animationName; bar.remove(); return name; })).toBe('m3-linear');
+    const name = getComputedStyle(bar, '::after').animationName; bar.remove(); return name; })).toBe('gdp-breathe');
   await page.getByRole('button', {name: /Accións desta páxina/}).click();
   const sheet = page.locator('.m3-sheet'); await expect(sheet).toBeVisible();
   expect(await sheet.evaluate(el => getComputedStyle(el).animationName)).toBe('m3-scrim-in');
@@ -260,7 +260,7 @@ test('al cambiar de pantalla, un toque durante la llegada no se pierde', async (
 test('compartir hacia la app busca; compartir una página usa el menú del sistema', async ({web: {page, open}}) => {
   await page.addInitScript(() => { window.shared = []; navigator.share = data => { window.shared.push(data); return Promise.resolve(); }; });
   await open(visor); await expect(page).toHaveTitle(`${obra.title}, páx. 2 · Galiciana de Peto`);
-  await expect(page.locator('meta[name=theme-color]')).toHaveAttribute('content', '#15222D');
+  await expect(page.locator('meta[name=theme-color]')).toHaveAttribute('content', '#162029');
   await page.getByRole('button', {name: 'Accións desta páxina'}).click();
   await page.getByRole('button', {name: /Compartir páxina/}).click();
   await expect.poll(() => page.evaluate(() => window.shared.length)).toBe(1);
@@ -296,7 +296,8 @@ test.describe('modo claro', () => {
     expect(await fondo()).toBe('rgb(241, 245, 249)');
     await expect(page.locator('meta[name=theme-color]')).toHaveAttribute('content', '#FBFDFF');
     await open(visor); await expect(page.locator('.native-viewer')).toBeVisible();
-    expect(await page.evaluate(() => getComputedStyle(document.querySelector('.native-viewer .viewer-top')).backgroundColor)).toBe('rgb(21, 34, 45)');
-    await expect(page.locator('meta[name=theme-color]')).toHaveAttribute('content', '#15222D');
+    // La barra es vidrio del color del visor (#15222D al 80 % sobre la sala): la barra de estado lleva esa mezcla, #162029.
+    expect(await page.evaluate(() => getComputedStyle(document.querySelector('.native-viewer .viewer-top')).backgroundColor)).toMatch(/21, 34, 45|0\.0823\d* 0\.1333\d* 0\.1764\d*/);
+    await expect(page.locator('meta[name=theme-color]')).toHaveAttribute('content', '#162029');
   });
 });
