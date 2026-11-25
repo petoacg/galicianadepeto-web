@@ -17,17 +17,17 @@ test('espacios de nombres, comillas y apóstrofos', async ({page}) => {
   expect((await run(page, xml, 'María')).pageSize).toEqual([1000, 2000]);
 });
 test('una palabra entre comillas es literal; una frase admite un solo error', async ({page}) => {
-  expect(await n(page, alto('Ulanga'), '"uranga"')).toBe(0); expect(await n(page, alto('Cárcamo'), '"carcamo"')).toBe(1);
-  expect(await n(page, alto('Luciano', 'Cárcamo', 'Ulanga'), '"luciano cárcamo uranga"')).toBe(await count(page, 'Luciano Cárcamo Ulanga', '"luciano cárcamo uranga"'));
-  expect(await n(page, alto('Luciano', 'Cárcamo', 'Ulanga'), '"luciano cárcamo uranga"')).toBe(1);
-  expect(await n(page, alto('Luciano', 'Cárcomo', 'Ulanga'), '"luciano cárcamo uranga"')).toBe(0);
-  expect(await count(page, 'Luciano Cárcomo Ulanga', '"luciano cárcamo uranga"')).toBe(0);
+  expect(await n(page, alto('Ubeila'), '"ubeira"')).toBe(0); expect(await n(page, alto('Bárcena'), '"barcena"')).toBe(1);
+  expect(await n(page, alto('Anselmo', 'Bárcena', 'Ubeila'), '"anselmo bárcena ubeira"')).toBe(await count(page, 'Anselmo Bárcena Ubeila', '"anselmo bárcena ubeira"'));
+  expect(await n(page, alto('Anselmo', 'Bárcena', 'Ubeila'), '"anselmo bárcena ubeira"')).toBe(1);
+  expect(await n(page, alto('Anselmo', 'Bárcana', 'Ubeila'), '"anselmo bárcena ubeira"')).toBe(0);
+  expect(await count(page, 'Anselmo Bárcana Ubeila', '"anselmo bárcena ubeira"')).toBe(0);
 });
 test('frase y palabra partidas en dos renglones: una coincidencia, dos cajas', async ({page}) => {
   const phrase = await run(page, alto('María', 'de', 'la', 'Cruz').replace('CONTENT="la" HPOS="210" VPOS="20"', 'CONTENT="la" HPOS="10" VPOS="50"').replace('CONTENT="Cruz" HPOS="310" VPOS="20"', 'CONTENT="Cruz" HPOS="110" VPOS="50"'), '"María de la Cruz"');
   expect(phrase.matches).toHaveLength(1); expect(phrase.matches[0].boxes).toHaveLength(2);
   expect(phrase.matches[0].boxes.every(b => b.height === 20 && b.width < 300)).toBe(true);
-  const word = await run(page, alto('Cár-', 'camo').replace('CONTENT="camo" HPOS="110" VPOS="20"', 'CONTENT="camo" HPOS="10" VPOS="50"'), '"cárcamo"');
+  const word = await run(page, alto('Bár-', 'cena').replace('CONTENT="cena" HPOS="110" VPOS="20"', 'CONTENT="cena" HPOS="10" VPOS="50"'), '"bárcena"');
   expect(word.matches.map(m => m.boxes.length)).toEqual([2]);
 });
 test('varias veces en la página, sin las palabras de antes y en orden de lectura', async ({page}) => {
@@ -46,25 +46,25 @@ test('coordenadas que no valen, página sin palabras y palabra que no está son 
   expect(await run(page, alto('María'), 'Salceda')).toMatchObject({status: 'AVAILABLE', matches: []});
 });
 test('letras sueltas, palabras cortadas y frases en una o varias piezas', async ({page}) => {
-  expect(await n(page, alto('a', 'gato'), 'a')).toBe(1); expect(await n(page, alto('Car', 'camo'), 'Cárcamo')).toBe(1); expect(await n(page, alto('gato'), 'pato')).toBe(0);
+  expect(await n(page, alto('a', 'gato'), 'a')).toBe(1); expect(await n(page, alto('Bar', 'cena'), 'Bárcena')).toBe(1); expect(await n(page, alto('gato'), 'pato')).toBe(0);
   const q = '"María de la Cruz"';
   expect(await n(page, alto('María de la Cruz'), q)).toBe(1); expect(await n(page, alto('María', 'de', 'la', 'Cruz'), q)).toBe(1); expect(await n(page, alto('María de la Cruz'), q + ' ' + q)).toBe(1);
 });
 test('columnas y bloques sin relación no se juntan', async ({page}) => {
   expect((await run(page, alto('María', 'Cruz').replace('HPOS="110"', 'HPOS="800"'), '"María Cruz"')).matches.map(m => m.boxes.length)).toEqual([2]);
   const apart = word => xml => xml.replace(`<String CONTENT="${word}"`, `</TextLine></TextBlock><TextBlock><TextLine><String CONTENT="${word}"`);
-  const cut = apart('camo')(alto('Cár-', 'camo'));
-  expect(await n(page, cut, '"Cárcamo"')).toBe(0); expect(await n(page, cut, '"Cár camo"')).toBe(0); expect(await n(page, cut.replace('Cár-', 'Car'), 'Cárcamo')).toBe(0);
+  const cut = apart('cena')(alto('Bár-', 'cena'));
+  expect(await n(page, cut, '"Bárcena"')).toBe(0); expect(await n(page, cut, '"Bár cena"')).toBe(0); expect(await n(page, cut.replace('Bár-', 'Bar'), 'Bárcena')).toBe(0);
   const two = apart('Salceda')(alto('María', 'Salceda'));
   expect(await n(page, two, 'María Salceda')).toBe(2); expect(await n(page, two, '"María Salceda"')).toBe(0);
 });
 test('los guiones del propio ALTO se respetan', async ({page}) => {
   const down = xml => xml.replace('HPOS="110" VPOS="20"', 'HPOS="10" VPOS="50"');
   for (const xml of [
-    down(alto('Cár', 'camo').replace('CONTENT="Cár"', 'CONTENT="Cár" SUBS_TYPE="HypPart1" SUBS_CONTENT="Cárcamo"').replace('CONTENT="camo"', 'CONTENT="camo" SUBS_TYPE="HypPart2" SUBS_CONTENT="Cárcamo"')),
-    down(alto('Cár', 'camo').replace('<String CONTENT="camo"', '<HYP CONTENT="-"/></TextLine><TextLine><String CONTENT="camo"')),
-    alto('Car', '-', 'camo').replace('<String CONTENT="camo"', '</TextLine><TextLine><String CONTENT="camo"').replace('HPOS="210" VPOS="20"', 'HPOS="10" VPOS="50"'),
-  ]) expect((await run(page, xml, '"cárcamo"')).matches.map(m => m.boxes.length)).toEqual([2]);
+    down(alto('Bár', 'cena').replace('CONTENT="Bár"', 'CONTENT="Bár" SUBS_TYPE="HypPart1" SUBS_CONTENT="Bárcena"').replace('CONTENT="cena"', 'CONTENT="cena" SUBS_TYPE="HypPart2" SUBS_CONTENT="Bárcena"')),
+    down(alto('Bár', 'cena').replace('<String CONTENT="cena"', '<HYP CONTENT="-"/></TextLine><TextLine><String CONTENT="cena"')),
+    alto('Bar', '-', 'cena').replace('<String CONTENT="cena"', '</TextLine><TextLine><String CONTENT="cena"').replace('HPOS="210" VPOS="20"', 'HPOS="10" VPOS="50"'),
+  ]) expect((await run(page, xml, '"bárcena"')).matches.map(m => m.boxes.length)).toEqual([2]);
   const dash = await run(page, alto('Moreiras', '-', 'Xinzo', 'de', 'Limia'), '"Xinzo de Limia"');
   expect(dash.matches.map(m => m.boxes[0].left)).toEqual([210]);
 });
@@ -90,7 +90,7 @@ test('la página de referencia recupera sus tres cortes', async ({page}) => {
   }
 });
 const examples = [['Federación Gallega', 'Federación Ga-llega'], ['Elisardo Núñez Seabra', 'Elisardo Núñez Sea-bra'], ['Manuel Fernández', 'Manuel Fer-nández'], ['Amador', 'Ama-dor'], ['Regimiento de Infantería Zamora', 'Regimiento de Infante-ria Zamora'], ['Xinzo de Limia', 'Xinzo de Li-mia'], ['Javier Vázquez', 'Ja-vier Vázquez']];
-test('los cortes que señaló Pedro, en el texto y en la imagen', async ({page}) => {
+test('los cortes señalados a mano, en el texto y en la imagen', async ({page}) => {
   for (const [name, printed] of examples) {
     const terms = name.split(' ').length;
     for (const text of [name, printed, printed.replace('-', '-\n'), printed.replace('-', '- '), printed.replace('-', '-\r\n')]) {
@@ -108,9 +108,9 @@ test('los cortes que señaló Pedro, en el texto y en la imagen', async ({page})
 });
 test('los tramos de una frase y sus errores permitidos', async ({page}) => {
   const ranges = (text, phrase) => page.evaluate(([t, p]) => { const g = globalThis.gdpAlto; return g.phraseRanges(g.ocrWords(t), g.expectedOf(p)); }, [text, phrase]);
-  expect(await ranges('Ulanga Uranga Urangas', 'Uranga')).toEqual([[1, 1]]); expect(await ranges('Cár-\ncamo', 'Cárcamo')).toEqual([[0, 0]]);
-  expect(await ranges('Luciano Car camo Uranga', 'Luciano Cárcamo Uranga')).toEqual([[0, 3]]); expect(await ranges('Luciano Cár#camo Uranga', 'Luciano Cárcamo Uranga')).toEqual([[0, 2]]);
-  expect(await ranges('Luciano Cárcomo Ulanga', 'Luciano Cárcamo Uranga')).toEqual([]); expect(await ranges('Luciano llegó Cárcamo Uranga', 'Luciano Cárcamo Uranga')).toEqual([]);
+  expect(await ranges('Ubeila Ubeira Ubeiras', 'Ubeira')).toEqual([[1, 1]]); expect(await ranges('Bár-\ncena', 'Bárcena')).toEqual([[0, 0]]);
+  expect(await ranges('Anselmo Bar cena Ubeira', 'Anselmo Bárcena Ubeira')).toEqual([[0, 3]]); expect(await ranges('Anselmo Bár#cena Ubeira', 'Anselmo Bárcena Ubeira')).toEqual([[0, 2]]);
+  expect(await ranges('Anselmo Bárcana Ubeila', 'Anselmo Bárcena Ubeira')).toEqual([]); expect(await ranges('Anselmo llegó Bárcena Ubeira', 'Anselmo Bárcena Ubeira')).toEqual([]);
   expect(await ranges('María María María', 'María María')).toEqual([[0, 1], [1, 2]]);
 });
 test('una página de periódico grande se resuelve enseguida', async ({page}) => {
