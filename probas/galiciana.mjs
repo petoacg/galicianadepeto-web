@@ -26,6 +26,7 @@ export async function simulate(context, log, slow = () => 0, options = {}) {
       if (name === 'calentar') return route.fulfill({json: {ok: false, error: 'Operación no admitida.'}, headers: {'access-control-allow-origin': '*'}}).catch(() => {});
       log.push(name + (name === 'recursoReferencia' ? ':' + args[0] + ':' + args[2] : name === 'buscarReferencia' ? ':' + args[0].query : ''));
       if (name === 'buscarReferencia') { await new Promise(done => setTimeout(done, slow(args[0].query))); log.push('resposta:' + args[0].query); }
+      if (name === 'recursoReferencia' && args[0] === 'mets' && options.waitMets) await options.waitMets();
       const value = name === 'buscarReferencia' ? {estado: 200, html: resultsFor(args[0].query), cursor: null}
         : name === 'recursoReferencia' ? (options.fallos?.(args) ? undefined : args[0] === 'mets' ? {mets: b64(args[1] === obraPdf ? metsPdf : args[1] === obraSenTexto ? metsSenTexto : mets)} : args[0] === 'alto' ? {alto: b64(alto)} : args[0] === 'ocr' ? {ocr: b64('O mestre canteiro')} : undefined) : name === 'catalogoReferencia' && options.ficha ? options.ficha : undefined;
       return route.fulfill({json: value ? {ok: true, value} : {ok: false, error: 'simulado'}, headers: {'access-control-allow-origin': '*'}}).catch(() => log.push('cancelada'));

@@ -1,0 +1,7 @@
+import {tr} from './i18n';
+import type {Hit} from './types'
+export function dossierMarkdown(hits:Hit[],folderMap:Record<string,string[]>):string {
+ let out='# Galiciana de Peto · Dossier de investigación\n\n'+tr('Referencias e Notas de referencia exportadas. Os documentos consúltanse en Galiciana; este ficheiro non inclúe imaxes.','Referencias y Notas de referencia exportadas. Los documentos se consultan en Galiciana; este archivo no incluye imágenes.')+'\n\n'
+ hits.forEach((hit,index)=>{if(!/^\d+$/.test(hit.path)||!Number.isInteger(hit.position)||hit.position<1)throw Error(tr('Referencia de páxina non válida','Referencia de página no válida'));out+=`## ${index+1}. ${hit.title.replaceAll('\n',' ')}\n\n${tr('Páxina','Página')} ${hit.position}\n\n${tr('Fonte','Fuente')}: https://biblioteca.galiciana.gal/es/catalogo_imagenes/grupo.do?path=${hit.path}&presentacion=pagina&posicion=${hit.position}\n\n`;const folders=folderMap[`${hit.path}|${hit.position}`]??[];if(folders.length)out+=`${tr('Cartafoles','Carpetas')}: ${folders.join(', ')}\n\n`;if(hit.savedQuery?.trim())out+=`Consulta: ${hit.savedQuery}\n\n`;if(hit.note?.trim())out+=`### Nota de referencia\n\n${hit.note}\n\n`})
+ return out+tr('---\n\nAntes de reutilizar imaxes ou documentos, consulta as condicións de dereitos indicadas en cada ficha orixinal.\n','---\n\nAntes de reutilizar imágenes o documentos, consulta las condiciones de derechos indicadas en cada ficha original.\n')
+}
