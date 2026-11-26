@@ -14,6 +14,11 @@ interface Kept {key: string; at: number; result: SearchResult}
 const onTheWay = new Map<string, Promise<SearchResult>>();
 let generation = 0;
 
+function cacheKey(preset: SearchPreset): string {
+  const {id, createdAt, ...criteria} = preset;
+  return JSON.stringify({...criteria, query: criteria.query.replace(/[“”«»„‟]/g, '"').replace(/[\s\u200B\u2060]+/gu, ' ').trim()});
+}
+
 function withStore<T>(mode: IDBTransactionMode, work: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     const opening = indexedDB.open('gdp-buscas', 1);
@@ -28,10 +33,12 @@ function withStore<T>(mode: IDBTransactionMode, work: (store: IDBObjectStore) =>
 }
 
 /** The copy on this device, if there is a recent one. It is a help: any failure means no copy. */
-export async function keptSearch(key: string): Promise<SearchResult | undefined> {
+export async function keptSearch(preset: SearchPreset): Promise<SearchResult | undefined> {
   try {
-    const kept = await withStore<Kept>('readonly', store => store.get(key));
-    return kept && Date.now() - kept.at < MAX_AGE ? kept.result : undefined;
+    const key = cacheKey(preset), legacy = JSON.stringify(preset);
+    const recent = (kept?:Kept) => kept && Date.now() - kept.at < MAX_AGE ? kept.result : undefined;
+    const kept = recent(await withStore<Kept>('readonly', store => store.get(key)));
+    return kept ?? (key === legacy ? undefined : recent(await withStore<Kept>('readonly', store => store.get(legacy))));
   } catch { return undefined; }
 }
 
@@ -51,7 +58,7 @@ export async function forgetSearches() {
 
 /** Rejects as soon as `signal` is cancelled; the search itself goes on and its answer is kept. */
 export function firstResults(preset: SearchPreset, signal: AbortSignal): Promise<SearchResult> {
-  const key = JSON.stringify(preset), born = generation;
+  const key = cacheKey(preset), born = generation;
   let request = onTheWay.get(key);
   if (!request) {
     request = api<SearchResult>('search', {preset, sort: 'Relevancia', asc: false}).then(result => {

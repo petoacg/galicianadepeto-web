@@ -14,3 +14,5 @@ GDP_APPS_SCRIPT_URL='https://script.google.com/macros/s/ID_DEL_DESPLIEGUE/exec' 
 La web generada queda en `experiments/apps-script-reference/build/pages/`. Comprueba los cambios antes de copiarla a la raíz del repositorio para publicarla. Usa la URL del despliegue existente de la pasarela, no la URL de edición del proyecto.
 
 La búsqueda muestra las páginas sin número en cuanto llega el HTML; su posición se resuelve en segundo plano desde el METS. Si se abre o guarda una de ellas antes de terminar, la acción espera el índice y señala cualquier error.
+
+La copia local de la primera página y las peticiones en curso reutilizan consultas con la misma normalización de espacios y comillas que aplica el transporte, sin distinguir los identificadores y fechas de búsquedas guardadas. Se conservan las diferencias de mayúsculas, tildes y filtros; las copias anteriores siguen siendo legibles.
