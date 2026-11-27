@@ -15,18 +15,38 @@ try {
  await context.addInitScript(()=>localStorage.setItem('gdp-works',JSON.stringify({'123':{hasText:true,pages:[1,2,3].map(position=>({position,imageId:String(position)}))}})));
  const page=await context.newPage(),errors=[];
  page.on('pageerror',error=>errors.push(String(error)));
- let releaseSecond;
+ let releaseSecond,directImageAttempts=0;
  const second=new Promise(resolve=>{releaseSecond=resolve});
  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900"><rect width="600" height="900" fill="white"/></svg>';
  const tallSvg='<svg xmlns="http://www.w3.org/2000/svg" width="600" height="1200"><rect width="600" height="1200" fill="white"/></svg>';
  await page.route('https://biblioteca.galiciana.gal/**',async route=>{
   const id=new URL(route.request().url()).searchParams.get('idImagen');
+  if(id==='1'&&++directImageAttempts===1){await route.abort();return}
   if(id==='2')await second;
   await route.fulfill({status:200,contentType:'image/svg+xml',body:id==='2'?tallSvg:svg}).catch(()=>{});
  });
+ await page.route('**/api/image?*',route=>route.fulfill({status:503,body:'simulated fallback failure'}));
  await page.goto(`http://127.0.0.1:${port}/?captura#screen=viewer&path=123&page=1&imageId=1&title=Prueba`);
  const view=page.locator('.viewer-viewport');
  await page.waitForFunction(()=>document.querySelector('.facsimile img.ready'));
+ assert.equal(directImageAttempts,2,'a transient image failure was not retried once automatically');
+ const fullscreenHeight=await page.evaluate(async()=>{
+  const viewport=window.visualViewport,original=viewport.height;
+  Object.defineProperty(viewport,'height',{configurable:true,value:original-80});
+  document.dispatchEvent(new Event('fullscreenchange'));
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  const synced=getComputedStyle(document.documentElement).getPropertyValue('--visible-height').trim();
+  delete viewport.height;
+  window.dispatchEvent(new Event('resize'));
+  return {synced,expected:`${Math.round(original-80)}px`};
+ });
+ assert.equal(fullscreenHeight.synced,fullscreenHeight.expected,'fullscreen change did not refresh the visible viewport height');
+ await page.setViewportSize({width:390,height:920});
+ await page.evaluate(async()=>{await document.documentElement.requestFullscreen();await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))});
+ const fullscreenFrame=await page.locator('.viewer').evaluate(el=>{const box=el.getBoundingClientRect();return {top:box.top,bottom:box.bottom,height:box.height,appBottom:el.closest('.app').getBoundingClientRect().bottom}});
+ assert.deepEqual(fullscreenFrame,{top:24,bottom:920,height:896,appBottom:920},'fullscreen viewer did not fill the resized viewport below its safe top inset');
+ await page.evaluate(()=>document.exitFullscreen());
+ await page.setViewportSize({width:390,height:844});
  const cdp=await context.newCDPSession(page);
  const touch=async(type,x,y)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{x,y,id:1}]});
  await touch('touchStart',310,400);

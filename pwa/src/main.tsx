@@ -6,7 +6,8 @@ import {startRipples} from './ripple';
 import {trackInputModality} from './layers';
 import {startLaunches} from './launch';
 startNativeTextScale([0.1, 0.15, 0.2, 0.25, 0.4, 0.5, 11.0, 12.0, 12.8, 13.6, 14.0, 14.4, 14.8, 15.2, 16, 16.8, 17.2, 17.6, 18.4, 19.2, 20.0, 20.8, 22.0, 23.2, 24, 28.0, 30.4, 32.0, 34.0, 36.0, 40.0]);
-// Browser controls can resize the visible area before CSS viewport units settle.
+// Browser controls and Fullscreen API transitions can resize the visible area before CSS viewport
+// units settle; some browsers signal the latter with fullscreenchange but no visualViewport resize.
 const viewport = window.visualViewport;
 if (viewport) {
   // The variable is inherited by the whole page, so every change restyles everything: write it at
@@ -20,7 +21,19 @@ if (viewport) {
       document.documentElement.style.setProperty('--visible-height', next);
     }
   };
-  viewport.addEventListener('resize', () => { if (!queued) queued = requestAnimationFrame(updateVisibleHeight); });
+  const scheduleVisibleHeight = () => {
+    if (!queued) queued = requestAnimationFrame(updateVisibleHeight);
+  };
+  viewport.addEventListener('resize', scheduleVisibleHeight);
+  window.addEventListener('resize', scheduleVisibleHeight);
+  window.addEventListener('orientationchange', scheduleVisibleHeight);
+  document.addEventListener('fullscreenchange', scheduleVisibleHeight);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    if (queued) cancelAnimationFrame(queued);
+    queued = 0;
+    scheduleVisibleHeight();
+  });
   updateVisibleHeight();
 }
 // Apple devices read in Apple's own letter (DESIGN.md › Typography); the rest keep Roboto.

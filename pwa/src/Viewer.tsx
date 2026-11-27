@@ -89,9 +89,9 @@ export default function Viewer({hit,onBack,onChange,onHome=onBack,quiet=false,on
  const [shown,setShown]=useState<{key:string;page:PageImage}>();
  const displayed=shown?.key===currentKey?shown.page:cachedPage(currentKey);
  useLayoutEffect(()=>{if(displayed)setNatural(n=>n[0]===displayed.width&&n[1]===displayed.height?n:[displayed.width,displayed.height])},[displayed]);
- useEffect(()=>{let disposed=false;setImageError('');if(pdfOnly)return;
-  loadPage(hit.path,hit.position,imageId).then(page=>{if(!disposed)setShown({key:currentKey,page})}).catch(()=>{if(!disposed)setImageError(tr('Non se puido abrir a páxina. Comproba a conexión e téntao de novo.','No se pudo abrir la página. Comprueba la conexión y vuelve a intentarlo.'))});
-  return()=>{disposed=true}},[currentKey,imageRetry,pdfOnly]);
+ useEffect(()=>{let disposed=false,retryTimer:ReturnType<typeof setTimeout>|undefined,finishRetry:(()=>void)|undefined;setImageError('');if(pdfOnly)return;
+  void (async()=>{for(let attempt=0;;attempt++){try{const page=await loadPage(hit.path,hit.position,imageId);if(!disposed)setShown({key:currentKey,page});return}catch{if(disposed)return;if(attempt===0){await new Promise<void>(resolve=>{const finish=()=>{retryTimer=undefined;finishRetry=undefined;resolve()};finishRetry=finish;retryTimer=setTimeout(finish,700)});if(disposed)return;continue}setImageError(tr('Non se puido abrir a páxina. Comproba a conexión e téntao de novo.','No se pudo abrir la página. Comprueba la conexión y vuelve a intentarlo.'));return}}})();
+  return()=>{disposed=true;if(retryTimer!==undefined){clearTimeout(retryTimer);finishRetry?.()}}},[currentKey,imageRetry,pdfOnly]);
  const imageSource=displayed?.url;
  // Ready means this very source has loaded. A flag reset by an effect lost the race with a
  // page already in memory, whose load event came first: the sheet then waited forever.
