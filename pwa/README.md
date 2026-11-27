@@ -16,3 +16,7 @@ La web generada queda en `experiments/apps-script-reference/build/pages/`. Compr
 La búsqueda muestra las páginas sin número en cuanto llega el HTML; su posición se resuelve en segundo plano desde el METS. Si se abre o guarda una de ellas antes de terminar, la acción espera el índice y señala cualquier error.
 
 La copia local de la primera página y las peticiones en curso reutilizan consultas con la misma normalización de espacios y comillas que aplica el transporte, sin distinguir los identificadores y fechas de búsquedas guardadas. Se conservan las diferencias de mayúsculas, tildes y filtros; las copias anteriores siguen siendo legibles.
+
+El paso de página responde al gesto sin esperar a descargar la imagen siguiente; mientras llega, el visor muestra la carga y permite reintentar si falla.
+
+La prueba táctil del visor usa Chrome y respuestas simuladas, sin consultar Galiciana: `node tests/viewer-gestures.mjs`. Por defecto busca Chrome en `/usr/bin/google-chrome`; se puede indicar otra ruta con `CHROME_PATH`.
