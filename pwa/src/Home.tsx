@@ -1,4 +1,4 @@
-import {installedApp} from './Fullscreen';
+import {enterFullscreen,installedApp} from './Fullscreen';
 import {InstallCard} from './InstallGate';
 import {tr} from './i18n';
 import {Maximize, Minimize} from 'lucide-react';
@@ -42,7 +42,7 @@ export default function Home({onOpen, onSearch, navigate}: Props) {
     setFullscreenError('');
     try{
       if(document.fullscreenElement) await document.exitFullscreen();
-      else await document.documentElement.requestFullscreen();
+      else if(!await enterFullscreen()) throw new Error('Fullscreen unavailable');
     }catch{setFullscreenError(tr('O navegador non permitiu activar a pantalla completa.','El navegador no permitió activar la pantalla completa.'));}
   }
   useEffect(() => {
