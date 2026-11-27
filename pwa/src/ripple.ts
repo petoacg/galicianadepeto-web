@@ -6,8 +6,8 @@
  * - Timing: on at once; off in 150 ms. A quick tap still flashes.
  * - It is drawn in a layer of its own, fixed over the control and following it if it moves, so React's markup, the control's
  *   position and overflow, and the enlarged touch areas of the chips are left alone. Only opacity is animated.
- * - Listeners are passive: clicks are never delayed. A touch that turns into a scroll is cancelled
- *   by the browser before the highlight starts (60 ms grace), so lists do not flash while scrolling.
+ * - Listeners are passive: clicks are never delayed. Movement cancels touch feedback before a
+ *   scroll can leave a highlight behind, even on browsers that send pointercancel late.
  * - Reduced motion changes nothing: it is a change of light, not of place.
  * - A control can opt out with data-no-ripple. A card that is clickable as a whole carries
  *   data-ripple; buttons inside it that only repeat its action carry data-ripple-parent.
@@ -33,15 +33,17 @@ export function startRipples() {
     const end = (kind: 'up' | 'cancel') => {
       if (released) return; released = true;
       window.clearTimeout(timer);
-      removeEventListener('pointerup', up, true); removeEventListener('pointercancel', cancel, true);
+      removeEventListener('pointerup', up, true); removeEventListener('pointercancel', cancel, true); removeEventListener('pointermove', move, true);
       // A quick tap still flashes; a touch that became a scroll shows nothing.
       if (!ripple && kind === 'up') begin();
       ripple?.release();
     };
     const up = (e: PointerEvent) => { if (e.pointerId === down.pointerId) end('up'); };
     const cancel = (e: PointerEvent) => { if (e.pointerId === down.pointerId) end('cancel'); };
+    const move = (e: PointerEvent) => { if (e.pointerId === down.pointerId && down.pointerType === 'touch' && Math.hypot(e.clientX-down.clientX,e.clientY-down.clientY)>8) end('cancel'); };
     addEventListener('pointerup', up, {capture: true, passive: true});
     addEventListener('pointercancel', cancel, {capture: true, passive: true});
+    addEventListener('pointermove', move, {capture: true, passive: true});
     const timer = down.pointerType === 'touch' ? window.setTimeout(begin, TOUCH_GRACE) : 0;
     if (down.pointerType !== 'touch') begin();
   }, {capture: true, passive: true});
@@ -59,11 +61,16 @@ function draw(host: HTMLElement) {
   document.body.append(layer);
   // The layer is fixed, so it follows the control while it lives: a tap that moves the content
   // (a section opening, a list scrolling into view) does not leave the highlight behind.
+  let x = 0, y = 0;
   const follow = () => {
     if (!layer.isConnected) return;
     if (!host.isConnected) { layer.remove(); return; }
     const now = host.getBoundingClientRect();
-    layer.style.transform = now.left === box.left && now.top === box.top ? '' : `translate(${now.left - box.left}px,${now.top - box.top}px)`;
+    const nextX = now.left - box.left, nextY = now.top - box.top;
+    if (nextX !== x || nextY !== y) {
+      x = nextX; y = nextY;
+      layer.style.transform = x || y ? `translate(${x}px,${y}px)` : '';
+    }
     requestAnimationFrame(follow);
   };
   requestAnimationFrame(follow);

@@ -1,5 +1,5 @@
 import {keyboardInput} from './layers';
-import {project,springFrames} from './spring';
+import {project,rubberband,springFrames} from './spring';
 import {tr} from './i18n';
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
 import type React from 'react';
@@ -69,7 +69,7 @@ export default function Viewer({hit,onBack,onChange,onHome=onBack,quiet=false,on
  const wide=viewportSize[0]>=900&&viewportSize[0]>viewportSize[1];
  const frameBottom=wide?Math.max(framePad,bottomBar):framePad;
  const frameHeight=Math.max(1,viewportSize[1]-framePad-frameBottom);
- // Until the page arrives its silhouette takes the usual newspaper proportion, so nothing moves when it lands.
+ // Until its dimensions are known, the silhouette uses the previous page's proportion.
  const ratio=natural[0]>1?natural[0]/natural[1]:1/1.45;
  const fitWidth=viewportSize[0]&&viewportSize[1]?Math.min(viewportSize[0],frameHeight*ratio):viewportSize[0];
  const [imageRetry,setImageRetry]=useState(0),[marksRetry,setMarksRetry]=useState(0);
@@ -88,6 +88,7 @@ export default function Viewer({hit,onBack,onChange,onHome=onBack,quiet=false,on
  // The page is drawn only once decoded: no broken image, no alt text, no marks over a hole.
  const [shown,setShown]=useState<{key:string;page:PageImage}>();
  const displayed=shown?.key===currentKey?shown.page:cachedPage(currentKey);
+ useLayoutEffect(()=>{if(displayed)setNatural(n=>n[0]===displayed.width&&n[1]===displayed.height?n:[displayed.width,displayed.height])},[displayed]);
  useEffect(()=>{let disposed=false;setImageError('');if(pdfOnly)return;
   loadPage(hit.path,hit.position,imageId).then(page=>{if(!disposed)setShown({key:currentKey,page})}).catch(()=>{if(!disposed)setImageError(tr('Non se puido abrir a páxina. Comproba a conexión e téntao de novo.','No se pudo abrir la página. Comprueba la conexión y vuelve a intentarlo.'))});
   return()=>{disposed=true}},[currentKey,imageRetry,pdfOnly]);
@@ -103,7 +104,7 @@ export default function Viewer({hit,onBack,onChange,onHome=onBack,quiet=false,on
  useEffect(()=>{const controller=new AbortController();const known=cachedWork(hit.path);setWork((previous:any)=>previous?.path===hit.path?previous:known?{...known,path:hit.path}:undefined);setWorkError('');if(known)return()=>controller.abort();// ViewerScreen: Galiciana sometimes fails the first request of a session, so the page
  // index is asked again twice (after 0.7 s and 1.4 s) before giving up.
  void (async()=>{for(let attempt=0;;attempt++){try{const w=await ((attempt===0&&workAhead.get(hit.path))||api('work?path='+hit.path,undefined,controller.signal));if(!Array.isArray(w.pages)||!w.pages.length)throw Error('No page index');return w}catch(e){if(controller.signal.aborted||attempt>=2)throw e;await new Promise(r=>setTimeout(r,700*(attempt+1)))}}})().then(w=>{if(controller.signal.aborted)return;rememberWork(hit.path,w);setWork({...w,path:hit.path})}).catch(()=>{if(!controller.signal.aborted)setWorkError(tr('Non se puido consultar o índice de páxinas. Podes seguir lendo esta imaxe. Téntao de novo para recuperar a navegación.','No se pudo consultar el índice de páginas. Puedes seguir leyendo esta imagen. Reintenta para recuperar la navegación.'))});return()=>controller.abort()},[hit.path,workRetry]);
- useEffect(()=>{setZoom(1);setSelected(0);setPage(undefined);setNatural(displayed?[displayed.width,displayed.height]:[1,1]);viewport.current?.scrollTo(0,0);void store.rememberReading(hit).catch(e=>setError(errorText(e)))},[hit.path,hit.position]);
+ useEffect(()=>{setZoom(1);setSelected(0);setPage(undefined);if(displayed)setNatural([displayed.width,displayed.height]);viewport.current?.scrollTo(0,0);void store.rememberReading(hit).catch(e=>setError(errorText(e)))},[hit.path,hit.position]);
  // Only a search needs the words of the page; the text itself is asked for when it is opened.
  useEffect(()=>{setPageError('');if(!applied.trim()||noText||pdfOnly){setPage({...NO_MARKS,identity:pageContext});setLoading(false);return}const controller=new AbortController();setLoading(true);void loadMarks(hit.path,hit.position,imageId,applied,controller.signal).then(p=>{if(!controller.signal.aborted){setPage({...p,identity:pageContext});setSelected(0)}}).catch(()=>{if(!controller.signal.aborted)setPageError(tr('Non se puido consultar o texto nin as posicións desta páxina. A imaxe segue dispoñible; podes tentar de novo a consulta.','No se pudo consultar el texto ni las posiciones de esta página. La imagen sigue disponible; puedes reintentar la consulta.'))}).finally(()=>{if(!controller.signal.aborted)setLoading(false)});return()=>controller.abort()},[pageContext]);
  const [ocr,setOcr]=useState<{identity:string;text?:string;failed?:boolean}>(),[ocrRetry,setOcrRetry]=useState(0);
@@ -144,8 +145,8 @@ export default function Viewer({hit,onBack,onChange,onHome=onBack,quiet=false,on
  const pageWidth=(w:number,h:number)=>viewportSize[0]?Math.min(viewportSize[0],frameHeight*w/Math.max(1,h)):0;
  useLayoutEffect(()=>{const el=viewport.current,old=leavingPage.current;if(!turn||!el||!old)return;
   const {values,duration}=springFrames(turn.from,-turn.dir*viewportSize[0],turn.velocity,{damping:1,response:.25});
-  const outgoing=old.animate(values.map(x=>({transform:`translateX(${x}px)`})),{duration,easing:'linear'});
-  const incoming=el.animate(values.map(x=>({transform:`translateX(${x+turn.dir*viewportSize[0]}px)`})),{duration,easing:'linear'});
+  const outgoing=old.animate(values.map(x=>({transform:`translateX(${x}px)`})),{duration,easing:'linear',fill:'both'});
+  const incoming=el.animate(values.map(x=>({transform:`translateX(${x+turn.dir*viewportSize[0]}px)`})),{duration,easing:'linear',fill:'both'});
   incoming.onfinish=()=>setTurn(t=>t?.id===turn.id?null:t);
   return()=>{incoming.cancel();outgoing.cancel()}
  },[turn]);
@@ -185,6 +186,15 @@ export default function Viewer({hit,onBack,onChange,onHome=onBack,quiet=false,on
   const midpoint=values.length>=2?{x:(values[0].x+values[1].x)/2,y:(values[0].y+values[1].y)/2}:first;
   gesture.current={x:first.x,y:first.y,left:area.scrollLeft,top:area.scrollTop,zoom:clampZoom(element&&fitWidth?element.offsetWidth/fitWidth:zoom),distance:values.length>=2?Math.hypot(values[0].x-values[1].x,values[0].y-values[1].y):undefined,anchor:element?imageAnchor(midpoint,element.getBoundingClientRect()):undefined,moved:values.length>=2||previous.moved,multi:values.length>=2||previous.multi};
  }
+ function settlePage(velocity:number){
+  if(reduceMotion){setDragX(0);return}
+  const el=viewport.current,from=dragRef.current,other=peek.current,offset=dragSideRef.current*viewportSize[0];
+  if(!el||!from){setDragX(0);return}
+  const {values,duration}=springFrames(from,0,velocity);
+  const animation=el.animate(values.map(x=>({transform:`translateX(${x}px)`})),{duration,easing:'linear',fill:'both'});
+  const neighbour=other?.animate(values.map(x=>({transform:`translateX(${x+offset}px)`})),{duration,easing:'linear',fill:'both'});
+  animation.onfinish=()=>{setDragX(0);animation.cancel();neighbour?.cancel()};
+ }
  function endPointer(area:HTMLDivElement,id:number,cancelled=false){
   const g=gesture.current,point=pointers.current.get(id);if(!point)return;
   // Android ViewerScreen: a turn needs a fifth of the width and a mostly horizontal drag.
@@ -192,11 +202,10 @@ export default function Viewer({hit,onBack,onChange,onHome=onBack,quiet=false,on
   const dx=point.x-g.x,dy=point.y-g.y,now=performance.now(),samples=track.current.filter(p=>now-p.t<100)/* a finger that stopped before lifting throws nothing */,a=samples[0],b=samples[samples.length-1],vx=a&&b&&b.t>a.t?(b.x-a.x)/(b.t-a.t):0,thrown=dx+project(vx);track.current=[];
   const side=dx<0?1:-1,turns=!cancelled&&Math.abs(dx)>Math.abs(dy)*1.5&&canTurn(side)&&(Math.abs(dx)>area.clientWidth*.22||(Math.sign(thrown)===Math.sign(dx)&&Math.abs(thrown)>area.clientWidth/2));
   if(swiping.current&&pointers.current.size===1){swiping.current=false;pointers.current.delete(id);gesture.current={x:0,y:0,left:0,top:0,zoom:1};
-   if(turns)turnTo(pages[index+side]?.position,dragRef.current,vx);else if(reduceMotion)setDragX(0);else{const el=viewport.current,from=dragRef.current,other=peek.current,offset=dragSideRef.current*viewportSize[0];
-    // It glides back on a spring that starts at the finger's speed, and can be caught on the way.
-    if(el&&from){const {values,duration}=springFrames(from,0,vx);const animation=el.animate(values.map(x=>({transform:`translateX(${x}px)`})),{duration,easing:'linear'});other?.animate(values.map(x=>({transform:`translateX(${x+offset}px)`})),{duration,easing:'linear'});animation.onfinish=()=>setDragX(0)}else setDragX(0)}return}
+   if(turns)turnTo(pages[index+side]?.position,dragRef.current,vx);else settlePage(vx);return}
   // Zoomed in but already at that side's edge: the drag turns the page, as in Android.
   if(turns&&pointers.current.size===1&&!g.multi&&zoomLive.current>1.02&&Math.abs(area.scrollLeft-g.left)<2){pointers.current.delete(id);gesture.current={x:0,y:0,left:0,top:0,zoom:1};void turnTo(pages[index+side]?.position);return}
+  if(pointers.current.size===1&&dragRef.current&&!turn)settlePage(0);
   if(!cancelled&&pointers.current.size===1&&!g.moved&&Math.hypot(point.x-g.x,point.y-g.y)<6){clearTimeout(tapTimer.current);tapTimer.current=setTimeout(()=>onQuiet(!quiet),300)}
   pointers.current.delete(id);
   // The pinch settles into state once, when it ends.
@@ -219,7 +228,7 @@ export default function Viewer({hit,onBack,onChange,onHome=onBack,quiet=false,on
  const fineMouse=typeof matchMedia!=='undefined'&&matchMedia('(pointer: fine)').matches;
  const wanted=Number(goText),goValid=!!goText&&Number.isInteger(wanted)&&wanted>=1&&wanted<=pages.length;
  return <div className={'viewer native-viewer '+(quiet?'quiet':'')} style={{'--frame-pad':`${framePad}px`,'--frame-bottom':`${frameBottom}px`} as React.CSSProperties}>
- <div className="viewer-viewport" ref={viewport} tabIndex={0} role="group" aria-label={tr('Imaxe dixitalizada. Usa os controis de zoom ou arrastra para desprazarte.','Imagen digitalizada. Usa los controles de zoom o arrastra para desplazarte.')} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();onQuiet(!quiet)}if(e.key==='+'){e.preventDefault();zoomTo(zoom*1.3)}if(e.key==='-'){e.preventDefault();zoomTo(zoom/1.3)}}} onWheel={e=>{if(e.ctrlKey){e.preventDefault();zoomTo(zoom*Math.exp(-e.deltaY*.01),{x:e.clientX,y:e.clientY})}}} onPointerDown={e=>{clearTimeout(tapTimer.current);const area=e.currentTarget;area.setPointerCapture(e.pointerId);if(!pointers.current.size)track.current=[{x:e.clientX,t:performance.now()}];pointers.current.set(e.pointerId,{x:e.clientX,y:e.clientY});startGesture(area)}} onPointerMove={e=>{
+ <div className="viewer-viewport" ref={viewport} tabIndex={0} role="group" aria-label={tr('Imaxe dixitalizada. Usa os controis de zoom ou arrastra para desprazarte.','Imagen digitalizada. Usa los controles de zoom o arrastra para desplazarte.')} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();onQuiet(!quiet)}if(e.key==='+'){e.preventDefault();zoomTo(zoom*1.3)}if(e.key==='-'){e.preventDefault();zoomTo(zoom/1.3)}}} onWheel={e=>{if(e.ctrlKey){e.preventDefault();zoomTo(zoom*Math.exp(-e.deltaY*.01),{x:e.clientX,y:e.clientY})}}} onPointerDown={e=>{clearTimeout(tapTimer.current);const area=e.currentTarget;area.setPointerCapture(e.pointerId);if(!pointers.current.size){track.current=[{x:e.clientX,t:performance.now()}];if(!turn&&dragRef.current)setDragX(catchPage())}pointers.current.set(e.pointerId,{x:e.clientX,y:e.clientY});startGesture(area)}} onPointerMove={e=>{
   if(!pointers.current.has(e.pointerId))return;
   pointers.current.set(e.pointerId,{x:e.clientX,y:e.clientY});
   const values=[...pointers.current.values()],g=gesture.current,area=e.currentTarget;
@@ -227,13 +236,13 @@ export default function Viewer({hit,onBack,onChange,onHome=onBack,quiet=false,on
    const rect=area.getBoundingClientRect(),distance=Math.hypot(values[0].x-values[1].x,values[0].y-values[1].y);
    applyZoom(g.zoom*distance/g.distance,g.anchor,{x:(values[0].x+values[1].x)/2-rect.left,y:(values[0].y+values[1].y)/2-rect.top},false);
   }else if(values.length===1){const dx=e.clientX-g.x,dy=e.clientY-g.y;if(Math.hypot(dx,dy)>=6)g.moved=true;
-   if(zoomLive.current<=1.02&&(swiping.current||(Math.abs(dx)>8&&Math.abs(dx)>Math.abs(dy)))){if(!swiping.current){swipeBase.current=catchPage();setTurn(null)}swiping.current=true;const now=performance.now();track.current=[...track.current.filter(p=>now-p.t<100),{x:e.clientX,t:now}];const side=dx<0?1:-1,x=swipeBase.current+(canTurn(side)?dx:dx*.25);
+   if(zoomLive.current<=1.02&&(swiping.current||(Math.abs(dx)>8&&Math.abs(dx)>Math.abs(dy)))){if(!swiping.current){swipeBase.current=catchPage();setTurn(null)}swiping.current=true;const now=performance.now();track.current=[...track.current.filter(p=>now-p.t<100),{x:e.clientX,t:now}];const side=dx<0?1:-1,x=swipeBase.current+(canTurn(side)?dx:Math.sign(dx)*rubberband(Math.abs(dx),area.clientWidth));
    // The finger produces this motion, so it follows even with reduced motion; only the release is instant.
    setDragX(x);return}
    area.scrollLeft=g.left-dx;area.scrollTop=g.top-dy}
  }} onPointerUp={e=>endPointer(e.currentTarget,e.pointerId)} onPointerCancel={e=>endPointer(e.currentTarget,e.pointerId,true)} onLostPointerCapture={e=>endPointer(e.currentTarget,e.pointerId,true)} onDoubleClick={e=>{clearTimeout(tapTimer.current);zoomTo(zoom>1?1:2.5,{x:e.clientX,y:e.clientY})}}><div className="facsimile-stage"><div className="facsimile" role="img" aria-label={tr(`Páxina ${hit.position} de ${hit.title}`,`Página ${hit.position} de ${hit.title}`)} aria-busy={!imgReady} style={{width:fitWidth?`${fitWidth*zoom}px`:`${zoom*100}%`,aspectRatio:natural[0]>1?`${natural[0]}/${natural[1]}`:'1/1.45'}}>{imageSource&&<img ref={imgRef} src={imageSource} alt="" className={imgReady?'ready':''} draggable={false} onLoad={e=>{const img=e.currentTarget;setImageError('');setNatural([img.naturalWidth,img.naturalHeight]);setReadySrc(img.getAttribute('src')||'')}} onError={()=>setImageError(tr('Non se puido abrir a páxina. Comproba a conexión e téntao de novo.','No se pudo abrir la página. Comprueba la conexión y vuelve a intentarlo.'))}/>}{!imgReady&&!imageError&&!pdfOnly&&<div className="page-skeleton" aria-hidden="true"/>}{imgReady&&marks&&count>0&&<svg viewBox={`0 0 ${page!.alto.pageSize[0]} ${page!.alto.pageSize[1]}`} preserveAspectRatio="none" className="ocr-overlay" aria-hidden="true">{matches.map((match,i)=>({match,i})).sort((a,b)=>Number(a.i===selected)-Number(b.i===selected)).flatMap(({match,i})=>match.boxes.map((b,j)=><rect key={`${i}-${j}`} x={b.left} y={b.top} width={b.width} height={b.height} rx={2*page!.alto.pageSize[0]/Math.max(1,fitWidth*zoom)} className={i===selected?'match active':'match'}/>))}{(()=>{const b=matches[selected]?.boxes[0];if(!b)return null;const unit=page!.alto.pageSize[0]/Math.max(1,fitWidth*zoom),r=Math.max(b.width,b.height)/2+10*unit,cx=b.left+b.width/2,cy=b.top+b.height/2;return <g key={`locator-${hit.position}-${selected}`} className="locator" style={{'--grow':`${(r+44*unit)/r}`} as React.CSSProperties}><circle className="locator-pulse" cx={cx} cy={cy} r={r}/>{zoom<1.6&&<circle className="locator-ring" cx={cx} cy={cy} r={r}/>}</g>})()}</svg>}</div></div></div>
  {!turn&&dragSide!==0&&(()=>{const side=dragSide;if(!canTurn(side))return null;const p=pages[index+side],copy=cachedPage(pageKey(hit.path,p.position,p.imageId)),w=copy?pageWidth(copy.width,copy.height):pageWidth(natural[0],natural[1]);
-  return <div ref={el=>{peek.current=el;if(el)el.style.transform=`translateX(${dragRef.current+side*viewportSize[0]}px)`}} className="turn-layer" aria-hidden="true">{copy?<img src={copy.url} alt="" style={{width:w}}/>:<div className="blank-sheet" style={{width:w,aspectRatio:`${natural[0]}/${natural[1]}`}}/>}</div>})()}
+  return <div ref={el=>{peek.current=el;if(el)el.style.transform=`translateX(${dragRef.current+side*viewportSize[0]}px)`}} className="turn-layer" aria-hidden="true">{copy?<img src={copy.url} alt="" style={{width:w}}/>:<div className="blank-sheet" style={{width:w,aspectRatio:`${natural[0]}/${natural[1]}`}}><div className="page-skeleton"/></div>}</div>})()}
  {turn&&<div ref={leavingPage} className="turn-layer" aria-hidden="true"><img src={turn.page.url} alt="" style={{width:turn.width}}/></div>}
  <div className="viewer-top">
  <header className="viewer-header" ref={headerRef}><button className="icon-button" onClick={onBack} aria-label={tr('Volver','Volver')}>{actionIcon('arrow_back')}</button><div className="viewer-heading"><h1 className="viewer-title"><strong title={hit.title}>{hit.title||'Documento'}</strong></h1><span>{pdfOnly?tr('Documento PDF','Documento PDF'):<>{tr('Páxina','Página')} {hit.position}{pages.length?` de ${pages.length}`:''}</>}{saved?(savedNote?tr(' · Gardada con nota',' · Guardada con nota'):tr(' · Gardada',' · Guardada')):''}</span></div><button className="icon-button viewer-vieira" disabled={saving} onClick={()=>void toggleSaved()} aria-pressed={!!saved} aria-label={saved?tr('Quitar de Gardados','Quitar de Guardados'):tr('Gardar páxina','Guardar página')}><ShellIcon size={24} selected={!!saved}/></button>{!pdfOnly&&<button className="icon-button" onClick={()=>setSearching(!searching)} aria-expanded={searching} aria-label={searching?tr('Pregar a busca na páxina','Plegar búsqueda en la página'):tr('Buscar na páxina','Buscar en la página')}>{actionIcon('search')}</button>}<button className="icon-button" onClick={()=>setActions(true)} aria-label={tr('Accións desta páxina','Acciones de esta página')}>{actionIcon('more_vert')}</button></header>

@@ -18,8 +18,8 @@ import {AlertDialog} from './FolderSheet';
 import {describeOrigin,screenKey,screenTitle,settleFocus} from './screenFocus';
 /**
  * Changing screen: the new screen is there at once and takes taps from the first frame; it only
- * arrives with a fade (220 ms) and 1/18 of the width of travel (260 ms), from the right going
- * forward and from the left going back. No view transition: while one plays, the page is a picture
+ * arrives with a subtle fade (220 ms) and 1/18 of the width of travel (260 ms), from the right going
+ * forward and from the left going back, except when returning to search results. No view transition: while one plays, the page is a picture
  * and every tap is lost (Apple: never lock out input). A new change interrupts the arrival.
  * Reduced motion keeps a short fade; the keyboard, nothing. Steps within a screen do not move.
  */
@@ -34,8 +34,8 @@ function withTransition(next:{screen:string},apply:()=>void){
  const navBefore=!!document.querySelector('.bottom-nav');
  flushSync(apply);
  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
- arriving.push(main.animate([{opacity:0},{opacity:1}],reduce?{duration:150,easing:'linear'}:{duration:back?200:220,easing:EASE_OUT}));
- if(!reduce)arriving.push(main.animate([{transform:`translateX(${(back?-1:1)*innerWidth/18}px)`},{transform:'none'}],{duration:back?240:260,easing:EASE_OUT}));
+ arriving.push(main.animate([{opacity:.92},{opacity:1}],reduce?{duration:150,easing:'linear'}:{duration:back?200:220,easing:EASE_OUT}));
+ if(!reduce&&!(back&&next.screen==='search'))arriving.push(main.animate([{transform:`translateX(${(back?-1:1)*innerWidth/18}px)`},{transform:'none'}],{duration:back?240:260,easing:EASE_OUT}));
  // The bottom bar stays put between tabs; coming back from the viewer (which has none) it fades in
  // with the screen, same curve and length, so both land on the same frame.
  const nav=document.querySelector<HTMLElement>('.bottom-nav');

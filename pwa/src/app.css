@@ -169,7 +169,7 @@
 /* Page turn: the page and its neighbour move together, even while the neighbour loads. */
 .native-viewer .turn-layer{position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;padding:var(--frame-pad,64px) 0 var(--frame-bottom,var(--frame-pad,64px));box-sizing:border-box;pointer-events:none}
 .native-viewer .turn-layer img{display:block;height:auto;max-width:none}
-.native-viewer .blank-sheet{background:#2E2B27}
+.native-viewer .blank-sheet{position:relative;background:#26231F}
 /* Hemeroteca (Android 0.4.5): the alphabet is the index itself, every letter one tap away;
    a title search shows as a line that Back or "Limpar título" leaves. */
 .letter-strip{display:flex;overflow-x:auto;padding:12px 0 8px;scrollbar-width:none}
@@ -870,7 +870,7 @@ html body .install-gate-language{display:flex;justify-content:flex-end;gap:8px;w
 html body .install-gate-language .select-chip{min-height:32px;margin:8px 0}
 
 /* Fluid loading (audit 2026-11-20): nothing half-made is ever drawn. */
-html body .native-viewer .facsimile>img{opacity:0;transition:opacity .22s var(--ease-out)}
+html body .native-viewer .facsimile>img{opacity:0}
 html body .native-viewer .facsimile>img.ready{opacity:1}
 html body .native-viewer .facsimile>img:not(.ready){color:transparent}
 html body .page-skeleton{position:absolute;inset:0;border-radius:2px;background:#26231F;overflow:hidden}
@@ -901,7 +901,7 @@ html body .search-screen .list-skeleton>.m3-linear-progress{display:none}
 
 /* Touch screens: no hover background left behind after a tap (the vieira kept a circle). */
 
-html body .icon-button:active{background:color-mix(in srgb,var(--md-on-surface) 12%,transparent)}
+@media (hover:hover) and (pointer:fine){html body .icon-button:active{background:color-mix(in srgb,var(--md-on-surface) 12%,transparent)}}
 
 /* The viewer's document title is its h1, drawn as before. */
 html body .viewer-heading .viewer-title{margin:0;min-width:0;font:inherit;color:inherit;letter-spacing:inherit}
@@ -938,6 +938,15 @@ html body :where(img){-webkit-touch-callout:none;-webkit-user-drag:none}
 @media (hover:hover) and (pointer:fine){html body .bottom-nav button:hover{background-image:none}html body .bottom-nav button:hover>span{background-image:linear-gradient(var(--md-state-hover),var(--md-state-hover))}}
 /* Text the reader may want to copy stays selectable. */
 html body :where(.note-body,.ocr-text,textarea,input,[contenteditable]){-webkit-user-select:text;user-select:text}
+@media (pointer:coarse){html body :where(input:not([type=checkbox]):not([type=radio]),textarea,select){font-size:max(16px,1em)}}
+html body .m3-sheet-body,html body .match-pages,html body .catalogue-chips{overscroll-behavior:contain}
+html:not(:fullscreen) body .app{--bottom-inset:env(safe-area-inset-bottom,0px)}
+@media (display-mode:standalone){
+ html:not(:fullscreen) body .app{padding-top:env(safe-area-inset-top,0px)}
+ html:not(:fullscreen) body .app.reading .viewer{height:calc(var(--visible-height,100dvh) - env(safe-area-inset-top,0px))}
+}
+html body .native-viewer .viewer-header,html body .native-viewer .viewer-footer{padding-left:max(4px,env(safe-area-inset-left,0px));padding-right:max(4px,env(safe-area-inset-right,0px))}
+html body .m3-sheet-body{padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
 
 /* Press highlight (src/ripple.ts): a fixed layer over the touched control, with its corners. */
 .gdp-ripple-layer{position:fixed;z-index:2147483000;pointer-events:none;contain:strict;opacity:0;background:var(--md-state-pressed)}
@@ -1011,6 +1020,7 @@ html body .search-screen article.work:nth-of-type(2){animation-delay:40ms}
 html body .search-screen article.work:nth-of-type(3){animation-delay:70ms}
 html body .search-screen article.work:nth-of-type(4){animation-delay:90ms}
 }
+@media (pointer:coarse){html body .search-screen :is(.text-button,.icon-button,.select-chip,.button,.load-more):active:not(:disabled){transform:none}}
 
 /* «Datos da publicación» opens like a drawer inside the sheet instead of jumping in (Emil); it is
    hidden from touch and screen readers while closed. Reduced motion: it only fades. */

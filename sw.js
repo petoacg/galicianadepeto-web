@@ -1,11 +1,11 @@
 // Service worker de la web publicada. build.mjs pone los valores de GDP_*.
 const prefix = 'gdp-pages-';
-const key = prefix + "b02a8c511790";
+const key = prefix + "224f1420e147";
 // Lo que hace falta para abrir, y lo que además puede llegar después (PDF).
-const startup = ["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png","./icon.svg","./apple-touch-icon.png","./assets/app-3ER4HWCE.js","./assets/c-427Z5ASM.js","./assets/app-42C5AE4A.css","./assets/transport-f133aab2.js","./fonts/Roboto-Android-708951ba.woff2","./fonts/MaterialSymbols-AndroidUI-846aab11.ttf","./fonts/MaterialSymbols-AndroidFilled-9d2efe1e.ttf"];
+const startup = ["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png","./icon.svg","./apple-touch-icon.png","./assets/app-3WFMRNSC.js","./assets/c-427Z5ASM.js","./assets/app-92DC0DA7.css","./assets/transport-f133aab2.js","./fonts/Roboto-Android-708951ba.woff2","./fonts/MaterialSymbols-AndroidUI-846aab11.ttf","./fonts/MaterialSymbols-AndroidFilled-9d2efe1e.ttf"];
 const kept = ["./assets/c-4ABTDGTZ.js","./assets/c-MSECQALX.js","./assets/c-UW2PRYP5.js","./fonts/NotoSans-Regular-b85c38ec.ttf"];
 // Sin cualquiera de estos la app no abre o abre sin diseño: la copia sólo vale si están todos.
-const essential = ["./assets/app-3ER4HWCE.js","./assets/c-427Z5ASM.js","./assets/app-42C5AE4A.css","./assets/transport-f133aab2.js"];
+const essential = ["./assets/app-3WFMRNSC.js","./assets/c-427Z5ASM.js","./assets/app-92DC0DA7.css","./assets/transport-f133aab2.js"];
 const hashed = url => url.pathname.includes('/assets/') || url.pathname.includes('/fonts/');
 
 // Los archivos con huella no cambian nunca: si la versión anterior ya los tiene, no se vuelven a
