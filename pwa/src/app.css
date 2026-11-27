@@ -166,20 +166,10 @@
 .native-viewer .match-page-chip.selected{background:var(--primary);border-color:var(--primary);color:var(--surface)}
 .native-viewer .match-pages>.text-button{flex:none;min-height:48px}
 
-/* Page turn (Android PageTurn): the page follows the finger with its neighbour attached,
-   then slides out while the next slides in. Nothing goes blank: a turn waits under a
-   loading bar until the next page is ready. */
+/* Page turn: the page and its neighbour move together, even while the neighbour loads. */
 .native-viewer .turn-layer{position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;padding:var(--frame-pad,64px) 0 var(--frame-bottom,var(--frame-pad,64px));box-sizing:border-box;pointer-events:none}
 .native-viewer .turn-layer img{display:block;height:auto;max-width:none}
-.native-viewer .turn-layer.leaving{animation:turn-leave var(--turn-ms,.3s) var(--ease-out) forwards}
-.native-viewer .viewer-viewport.arriving{animation:turn-arrive var(--turn-ms,.3s) var(--ease-out)}
-.native-viewer .viewer-viewport.arriving.again{animation-name:turn-arrive-again}
-.native-viewer .viewer-viewport.settling{transition:transform .28s var(--ease-out)}
 .native-viewer .blank-sheet{background:#2E2B27}
-.native-viewer .turn-progress{position:absolute;left:0;right:0;top:calc(var(--frame-pad,64px) - 4px);z-index:2;height:4px;width:100%;border:0;accent-color:var(--primary)}
-@keyframes turn-leave{from{transform:translateX(var(--turn-from,0))}to{transform:translateX(var(--turn-to,-100%))}}
-@keyframes turn-arrive{from{transform:translateX(var(--turn-in,100%))}to{transform:translateX(0)}}
-@keyframes turn-arrive-again{from{transform:translateX(var(--turn-in,100%))}to{transform:translateX(0)}}
 /* Hemeroteca (Android 0.4.5): the alphabet is the index itself, every letter one tap away;
    a title search shows as a line that Back or "Limpar título" leaves. */
 .letter-strip{display:flex;overflow-x:auto;padding:12px 0 8px;scrollbar-width:none}

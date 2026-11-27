@@ -68,9 +68,9 @@ export function BottomSheet({label,onClose,children,tall=false}:{label:string;on
  const releaseRef=useRef(release);releaseRef.current=release;
  // Android drags the sheet from its content too, once that content is scrolled to the top.
  useEffect(()=>{const area=body.current;if(!area)return;let start:{x:number;y:number;top:boolean}|null=null,dragging=false;
-  const down=(e:TouchEvent)=>{if(e.touches.length!==1){start=null;return}const t=e.touches[0];start={x:t.clientX,y:t.clientY,top:area.scrollTop<=0};dragging=false};
+  const down=(e:TouchEvent)=>{if(e.touches.length!==1){if(dragging)releaseRef.current(true);start=null;dragging=false;return}if((e.target as Element).closest('button,a,input,select,textarea,[contenteditable="true"],[data-vaul-no-drag]'))return;const t=e.touches[0];start={x:t.clientX,y:t.clientY,top:area.scrollTop<=0};dragging=false};
   const move=(e:TouchEvent)=>{if(!start||!start.top||e.touches.length!==1)return;const t=e.touches[0],dy=t.clientY-start.y,dx=t.clientX-start.x;
-   if(!dragging){if(dy>8&&dy>Math.abs(dx)&&area.scrollTop<=0){dragging=true;begin(t.clientY)}else if(Math.abs(dx)>8||dy<-8){start=null;return}else return}
+   if(!dragging){if(dy>8&&dy>Math.abs(dx)&&area.scrollTop<=0){dragging=true;begin(start.y)}else if(Math.abs(dx)>8||dy<-8){start=null;return}else return}
    e.preventDefault();follow(t.clientY)};
   const up=(e:TouchEvent)=>{if(dragging)releaseRef.current(e.type==='touchcancel');dragging=false;start=null};
   area.addEventListener('touchstart',down,{passive:true});area.addEventListener('touchmove',move,{passive:false});area.addEventListener('touchend',up);area.addEventListener('touchcancel',up);
