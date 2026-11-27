@@ -19,5 +19,6 @@ La copia local de la primera página y las peticiones en curso reutilizan consul
 
 El paso de página responde al gesto sin esperar a descargar la imagen siguiente; mientras llega, el visor muestra la carga y permite reintentar si falla.
 La previsualización y la página en carga conservan la misma silueta durante el paso; las páginas ya descargadas usan sus dimensiones reales desde el primer fotograma. La indicación táctil se cancela al desplazar el dedo, sin bloquear el desplazamiento de las listas. Al volver del visor, los resultados conservan su posición sin desplazamiento lateral de entrada.
+Un fallo transitorio al pedir el texto OCR tiene un reintento automático; si también falla, el lector conserva la opción de reintentar manualmente.
 
 La prueba táctil del visor usa Chrome y respuestas simuladas, sin consultar Galiciana: `node tests/viewer-gestures.mjs`. Por defecto busca Chrome en `/usr/bin/google-chrome`; se puede indicar otra ruta con `CHROME_PATH`.

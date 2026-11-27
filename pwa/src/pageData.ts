@@ -38,9 +38,23 @@ export function loadMarks(path: string, position: number, imageId: string | unde
   return ahead;
 }
 
-/** The recognised text, asked for only when someone opens it. */
-export const loadText = (path: string, position: number, imageId: string | undefined, signal: AbortSignal) =>
-  api<Page>(request(path, position, imageId, '', 'ocr'), undefined, signal).then(page => page.ocrText);
+/** The recognised text, asked for only when someone opens it. Retry a transient gateway failure once. */
+export async function loadText(path: string, position: number, imageId: string | undefined, signal: AbortSignal) {
+  const url = request(path, position, imageId, '', 'ocr');
+  for (let attempt = 0; ; attempt++) {
+    signal.throwIfAborted();
+    try { return (await api<Page>(url, undefined, signal)).ocrText; }
+    catch (error) {
+      if (signal.aborted || attempt > 0) throw error;
+      await new Promise<void>((resolve, reject) => {
+        const abort = () => { clearTimeout(timer); reject(signal.reason); };
+        const timer = setTimeout(() => { signal.removeEventListener('abort', abort); resolve(); }, 700);
+        signal.addEventListener('abort', abort, {once:true});
+        if (signal.aborted) abort();
+      });
+    }
+  }
+}
 /** How often the words appear in a page's text: what reviewing the whole document asks for, as Android does. */
 export const countInText = (path: string, position: number, imageId: string | undefined, query: string, signal: AbortSignal) =>
   api<Page>(request(path, position, imageId, query, 'ocr'), undefined, signal).then(page => page.matchCount);
