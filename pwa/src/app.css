@@ -1264,3 +1264,6 @@ html body .native-viewer .ocr-overlay .match.active{fill:#F7C64ACC;stroke:#C8901
 .viewer-action-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:80px;padding:8px 4px;border:0;border-radius:20px;background:var(--surface-high);color:var(--ink);font:inherit;font-size:var(--sp-12,.75rem);font-weight:500;text-decoration:none;cursor:pointer}
 .viewer-action-tile.on{background:var(--container);color:var(--md-on-primary-container)}
 .viewer-action-tile:disabled{opacity:.6}
+.viewer-switch-row{cursor:pointer}
+.viewer-switch-row>span:nth-child(2){flex:1;min-width:0}
+.viewer-switch-row>.m3-switch{flex:none;margin-left:auto}
