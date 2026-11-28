@@ -504,11 +504,14 @@
       const ago = p.get('years').split(',').map(Number).filter(n => n > 0 && n < 300).slice(0, 4);
       items = (await Promise.all(ago.map(async years => {
         const year = y - years;
+        // A paper that came out that very day wins over one whose nearest issue is a day or two before.
+        let fallback = null;
         for (const paper of covering(year).slice(0, 4)) {
           const issue = await attempt(paper, year);
-          if (issue) return withImage({...issue, years, year});
+          if (issue?.exact) return withImage({...issue, years, year});
+          fallback ??= issue;
         }
-        return null;
+        return fallback && withImage({...fallback, years, year});
       }))).filter(Boolean);
     } else {
       // «Un día na hemeroteca»: every daily that came out that day (or the day before when none did).

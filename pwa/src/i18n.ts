@@ -26,3 +26,12 @@ export function chooseLang(next: Lang) {
   current = next;
   location.reload();
 }
+
+/** Month names by hand: some browsers ship no Galician date data and print «M11». */
+const MONTHS={gl:['xaneiro','febreiro','marzo','abril','maio','xuño','xullo','agosto','setembro','outubro','novembro','decembro'],es:['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']};
+/** «28 de novembro», «28 de novembro de 1946»; short: «28 nov.» */
+export function dateText(d:Date,{year=false,short=false,utc=false}={}):string{
+ const day=utc?d.getUTCDate():d.getDate(),m=utc?d.getUTCMonth():d.getMonth(),y=utc?d.getUTCFullYear():d.getFullYear(),name=MONTHS[current][m];
+ if(short)return `${day} ${name.slice(0,3)}.`;
+ return `${day} de ${name}${year?` de ${y}`:''}`;
+}

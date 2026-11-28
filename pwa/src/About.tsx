@@ -1,4 +1,4 @@
-import {tr} from './i18n';
+import {tr,dateText} from './i18n';
 import {useState} from 'react';
 import {MaterialIcon, PageTitle, Thumbnail} from './components';
 import {AlertDialog} from './FolderSheet';
@@ -60,7 +60,7 @@ export function About({onBack,onLegal,onHistory}:{onBack:()=>void;onLegal:()=>vo
 /** Axustes › Historial de lectura: the works opened, newest first. */
 export function ReadingHistory({onBack,onOpen}:{onBack:()=>void;onOpen:(hit:Hit)=>void}){
   const [list,setList]=useState(readingHistory),[ask,setAsk]=useState(false);
-  const when=(at:number)=>new Date(at).toLocaleString(lang()==='gl'?'gl-ES':'es-ES',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+  const when=(at:number)=>{const d=new Date(at);return `${dateText(d,{short:true})} · ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`};
   return <><PageTitle title={tr('Historial de lectura','Historial de lectura')} onBack={onBack}/><div className="content reading-history">
     {!historyOn()&&<p className="muted">{tr('O historial está apagado: non se engaden obras novas.','El historial está apagado: no se añaden obras nuevas.')}</p>}
     {!list.length?<p>{tr('Aínda non abriches ningunha obra con el aceso.','Todavía no has abierto ninguna obra con él encendido.')}</p>:<>

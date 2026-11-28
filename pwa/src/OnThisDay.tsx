@@ -1,4 +1,4 @@
-import {tr,lang} from './i18n';
+import {tr,dateText} from './i18n';
 import {useEffect,useState} from 'react';
 import type {Hit} from './types';
 import {api,errorText,thumb} from './api';
@@ -13,7 +13,7 @@ interface DayAnswer {date:string;items:DayIssue[];covered?:number}
 export const YEARS_AGO=[60,80,100];
 
 const isoToday=()=>{const d=new Date();return [d.getFullYear(),d.getMonth()+1,d.getDate()].map((v,i)=>String(v).padStart(i?2:4,'0')).join('-')};
-const dayName=(iso:string,withYear=false)=>new Date(iso+'T12:00:00Z').toLocaleDateString(lang()==='gl'?'gl-ES':'es-ES',{day:'numeric',month:'long',...(withYear?{year:'numeric'}:{}),timeZone:'UTC'});
+const dayName=(iso:string,withYear=false)=>dateText(new Date(iso+'T12:00:00Z'),{year:withYear,utc:true});
 const hitOf=(issue:DayIssue):Hit=>({path:issue.path,position:1,imageId:issue.imageId,title:`${issue.paper} · ${issue.label}`,parentTitle:issue.paper,snippets:[]});
 async function openIssue(issue:DayIssue,onOpen:(hit:Hit)=>void){const hit=hitOf(issue);try{await store.rememberReading(hit)}catch{/* reading on is what matters */}onOpen(hit)}
 
