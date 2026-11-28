@@ -383,17 +383,19 @@
     return {seen, score: best ? best + Math.min(20, strong) * 15 :
       seen.size === terms.length && terms.length > 1 ? 1000 * seen.size : 200 * seen.size};
   };
-  const hitKey = hit => hit.path + '|' + hit.position;
+  const hitKey = hit => hit.path + '|' + (hit.position == null ? (hit.imageId ? 'image:' + hit.imageId : 'unknown:' + hit.unknownId) : hit.position);
+  const hitAliases = hit => [hitKey(hit), ...(hit.imageId ? [hit.path + '|image:' + hit.imageId] : [])];
   const mergeHits = hits => {
-    const merged = new Map();
+    const merged = [], aliases = new Map();
     for (const hit of hits) {
-      const key = hitKey(hit);
-      const prior = merged.get(key);
-      merged.set(key, prior ? {...prior, imageId: prior.imageId || hit.imageId,
+      const previous = hitAliases(hit).map(key => aliases.get(key)).find(index => index !== undefined);
+      const index = previous ?? merged.length, prior = merged[index];
+      merged[index] = prior ? {...prior, position: prior.position ?? hit.position, imageId: prior.imageId || hit.imageId,
         parentTitle: prior.parentTitle || hit.parentTitle,
-        snippets: [...new Set([...prior.snippets, ...hit.snippets])]} : hit);
+        snippets: [...new Set([...prior.snippets, ...hit.snippets])]} : hit;
+      for (const key of [...hitAliases(hit), ...hitAliases(merged[index])]) aliases.set(key, index);
     }
-    return [...merged.values()];
+    return merged;
   };
   const groupsFor = hits => {
     const groups = new Map();
@@ -495,7 +497,9 @@
         (unit ? Number(node.textContent.match(/p[áa]g(?:ina|\.)?\s*(\d+)/i)?.[1]) || null : 1);
       const snippets = unit ? [...new Set(Array.from(node.querySelectorAll('ul.texto_ocurrencias li'),
         item => clean(item.textContent)).filter(value => value.length >= 3 && /[\p{L}\p{N}]/u.test(value)))].slice(0, 12) : [];
-      return {path, position, title, parentTitle, imageId:url.searchParams.get('idImagen'), snippets};
+      const imageId = url.searchParams.get('idImagen');
+      return {path, position, title, parentTitle, imageId, snippets,
+        ...(!position && !imageId ? {unknownId:crypto.randomUUID()} : {})};
     };
     const cards = [...doc.querySelectorAll('.nav_registros .nav_registro')];
     const units = (node, card) => [...node.querySelectorAll('.unidad_textual')].map(unit => readHit(unit, card, true)).filter(Boolean);
@@ -509,20 +513,6 @@
     const totalWorks = total === undefined ? null : Number(total.replaceAll('.', ''));
     if (!hits.length && !empty.test(doc.body.textContent) && totalWorks !== 0) {
       throw Error('Galiciana no ha devuelto una página de resultados reconocible. Vuelve a intentarlo.');
-    }
-    // Galiciana escribe «Página -» o «Página [Cuberta]» en las páginas sin número impreso, y entonces
-    // el enlace sólo trae la imagen. Su número sale del índice de la obra; sin él, «path|null» juntaría
-    // en un resultado todas esas páginas de la misma obra. Tope de 4 s: si no llega, el visor lo corrige.
-    const unknown = [...new Set(hits.filter(hit => !hit.position && hit.imageId).map(hit => hit.path))];
-    if (unknown.length) {
-      const indexes = new Map();
-      await Promise.race([
-        Promise.all(unknown.map(path => work(path, signal).then(w => indexes.set(path, w)).catch(() => {}))),
-        new Promise(resolve => setTimeout(resolve, 4000)),
-      ]);
-      for (const hit of hits) if (!hit.position) {
-        hit.position = indexes.get(hit.path)?.pages.find(p => p.imageId === hit.imageId)?.position || null;
-      }
     }
     return {hits, cursor:data.cursor, totalWorks, order:data.ordenAplicado};
   };
@@ -570,7 +560,7 @@
         for (let j = i+1; j < tokens.length && candidates.size < 12; j++) candidates.add(tokens[i]+' '+tokens[j]);
       }
     }
-    const excluded = new Set(exclude.map(hit => hit.path+'|'+hit.position));
+    const excluded = new Set(exclude.flatMap(hitAliases));
     const found = new Map();
     let incomplete = false, successful = 0, firstError;
     const queries = [...candidates];
@@ -601,8 +591,8 @@
       successful++;
       incomplete ||= Boolean(result.value.cursor);
       for (const hit of result.value.hits) {
-        const key = hit.path+'|'+hit.position;
-        if (excluded.has(key)) continue;
+        const key = hitKey(hit);
+        if (hitAliases(hit).some(alias => excluded.has(alias))) continue;
         const snippets = hit.snippets;
         if (variant && !snippets.some(value => phraseMatches(value, phrase))) continue;
         const prior = found.get(key);
@@ -612,7 +602,7 @@
     if (queries.length && !successful) throw firstError;
     const limit = variant ? 200 : Math.min(200,Math.max(1,Number(body.limit)||50));
     const candidatesFound = mergeHits([...(variant ? [] : body.unverifiedQuoted || []), ...found.values()])
-      .filter(hit => !excluded.has(hitKey(hit)));
+      .filter(hit => !hitAliases(hit).some(alias => excluded.has(alias)));
     const truncated = candidatesFound.length > limit;
     return {...orderedResults(candidatesFound.slice(0,limit), query), incomplete:incomplete||truncated,truncated};
   };
@@ -655,6 +645,108 @@
     }
     return {latest:[...latest.values()]};
   };
+  // Every digitised issue on a year page of the Hemeroteca, with its date when the page gives one.
+  const issuesOf = (doc, url) => {
+    const issues = new Map();
+    for (const link of doc.querySelectorAll('a[href*="grupo.do"][href*="path="]')) {
+      if (!/^copia di[xg]ital/i.test(link.textContent.trim())) continue;
+      const path = new URL(link.getAttribute('href'), url).searchParams.get('path');
+      let context = '';
+      for (let node = link.parentElement, depth = 0; node && depth < 7; node = node.parentElement, depth++) {
+        if ([...node.querySelectorAll('a[href*="grupo.do"]')].filter(a => /copia/i.test(a.textContent)).length > 1) break;
+        const value = node.textContent.trim().replace(/\s+/g, ' ');
+        if (value.length > context.length) context = value;
+      }
+      const number = context.match(/\b(?:n[uú]mero|n[uú]m\.)\s*(?:s\.n\.|\d+[A-Za-z0-9./-]*)/i)?.[0];
+      const months = ['xaneiro enero jan','febreiro febrero feb','marzo mar','abril abr','maio mayo may',
+        'xuno junio jun','xullo julio jul','agosto ago','setembro septiembre setiembre sep',
+        'outubro octubre oct','novembro noviembre nov','decembro diciembre dic'];
+      const normalized = fold(context);
+      const month = months.findIndex(names => names.split(' ').some(name => new RegExp('\\b'+name+'\\b').test(normalized))) + 1;
+      const numeric = context.match(/\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b/);
+      const written = normalized.match(/\b(\d{4})\s+([a-z]+)\s+(\d{1,2})\b/);
+      const reversed = normalized.match(/\b(\d{1,2})\s+(?:de\s+)?([a-z]+)\s+(?:de\s+)?(\d{4})\b/);
+      const named = written || reversed;
+      const namedMonth = named ? months.findIndex(names => names.split(' ').includes(named[2])) + 1 : 0;
+      const date = numeric ? [numeric[3],numeric[2],numeric[1]] :
+        namedMonth ? [written ? written[1] : reversed[3],namedMonth,written ? written[3] : reversed[1]] : null;
+      const formatted = date ? [date[2],date[1],date[0]].map(v=>String(v).padStart(2,'0')).join('/') : '';
+      const label = [number,formatted].filter(Boolean).join(' · ') || 'Ejemplar sin fecha identificada';
+      if (path) issues.set(path,{path,label,month:date ? Number(date[1]) : month || null,
+        day:date ? [date[0],date[1],date[2]].map((v,i)=>String(v).padStart(i?2:4,'0')).join('-') : null});
+
+    }
+    return [...issues.values()];
+  };
+  // «Tal día como hoxe»: the daily papers of the Hemeroteca with an issue for almost every day.
+  // Galician dailies in the Hemeroteca with a long, nearly daily run, most issues first (index of 28 Nov 2026).
+  const dailies = [
+    ['2342','El Correo Gallego',1878,1965],['215','El Pueblo Gallego',1924,1979],['128','El Regional',1885,1931],
+    ['10043','La Región',1910,1955],['157','El Ideal Gallego',1917,1959],['3762','El Progreso',1941,1981],
+    ['3144','El Diario de Pontevedra',1897,1976],['172','La Integridad',1888,1925],['147','Gaceta de Galicia',1879,1918],
+    ['182','La Voz de la Verdad',1910,1937],['74','El Compostelano',1920,1946],['922','La Noche',1946,1967],
+    ['200','El Norte de Galicia',1901,1923],['146','Galicia Nueva',1907,1929],['170','La Correspondencia Gallega',1897,1920],
+    ['120','El Lucense',1886,1901],['71','El Correo de Galicia',1900,1919],['1862','La Zarpa',1921,1936],
+    ['108','El Eco de Galicia',1872,1898],['155','La Idea Moderna',1898,1919],['187','El Miño',1898,1912],
+    ['2883','El Eco de Santiago',1906,1938],['4323','Diario de Avisos de La Coruña',1871,1893],['103','El Eco de Galicia',1908,1915],
+    ['254','El Telegrama',1874,1898],['6863','La Monarquía',1887,1896],['99','El Áncora',1897,1904],
+    ['3162','Noticiero de Vigo',1905,1915],['7962','Galicia',1930,1935],
+  ].map(([id,title,from,to]) => ({id,title,from,to}));
+  const yearIssues = new Map();
+  const issuesFor = (id, year, signal) => {
+    const key = id + ':' + year;
+    if (!yearIssues.has(key)) {
+      const url = base + 'publicaciones/numeros_por_mes.do?' + new URLSearchParams({idPublicacion:id, anyo:String(year)});
+      const request = catalogueDoc(signal, url).then(doc => issuesOf(doc, url));
+      request.catch(() => yearIssues.delete(key));
+      yearIssues.set(key, request);
+    }
+    return yearIssues.get(key);
+  };
+  const isoDay = (y, m, d) => { const t = new Date(Date.UTC(y, m - 1, d)); return t.toISOString().slice(0,10); };
+  // The issue of that day, or of up to three days before when none came out (no paper on Mondays).
+  const issueNear = async (paper, y, m, d, signal) => {
+    const issues = await issuesFor(paper.id, y, signal);
+    for (let back = 0; back <= 3; back++) {
+      const day = isoDay(y, m, d - back);
+      const found = issues.find(issue => issue.day === day);
+      if (found) return {...found, day, exact:back === 0, paper:paper.title, publicationId:paper.id};
+    }
+    return null;
+  };
+  const firstImage = async (path, signal) => {
+    try { return (await work(path, signal)).pages[0]?.imageId || null; }
+    catch (error) { signal?.throwIfAborted(); return null; }
+  };
+  const onThisDay = async (p, signal) => {
+    const match = (p.get('date') || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) throw Error('Fecha no válida.');
+    const [y, m, d] = match.slice(1).map(Number);
+    const covering = year => dailies.filter(paper => paper.from <= year && year <= paper.to);
+    const attempt = async (paper, year) => {
+      try { return await issueNear(paper, year, m, d, signal); }
+      catch (error) { signal?.throwIfAborted(); return null; }
+    };
+    const withImage = async issue => ({...issue, imageId:await firstImage(issue.path, signal)});
+    let items;
+    if (p.get('years')) {
+      // «Tal día como hoxe»: one paper a year, the first in the list that has that day; four tries at most.
+      const ago = p.get('years').split(',').map(Number).filter(n => n > 0 && n < 300).slice(0, 4);
+      items = (await Promise.all(ago.map(async years => {
+        const year = y - years;
+        for (const paper of covering(year).slice(0, 4)) {
+          const issue = await attempt(paper, year);
+          if (issue) return withImage({...issue, years, year});
+        }
+        return null;
+      }))).filter(Boolean);
+    } else {
+      // «Un día na hemeroteca»: every daily that came out that day (or the day before when none did).
+      items = await Promise.all((await Promise.all(covering(y).slice(0, 12).map(paper => attempt(paper, y))))
+        .filter(Boolean).map(issue => withImage({...issue, years:0, year:y})));
+    }
+    return {date:isoDay(y, m, d), items, covered:dailies.length};
+  };
   const hemeroteca = async (p, signal) => {
     const id = p.get('id'), year = p.get('year');
     if (id) {
@@ -662,35 +754,7 @@
       const doc = await catalogueDoc(signal, url);
       if (!year) return { years: [...new Set(Array.from(doc.querySelectorAll('a[href*="anyo="]'), a =>
         new URL(a.getAttribute('href'), url).searchParams.get('anyo')).filter(y => /^\d{4}$/.test(y || '')))].sort() };
-      const issues = new Map();
-      for (const link of doc.querySelectorAll('a[href*="grupo.do"][href*="path="]')) {
-        if (!/^copia di[xg]ital/i.test(link.textContent.trim())) continue;
-        const path = new URL(link.getAttribute('href'), url).searchParams.get('path');
-        let context = '';
-        for (let node = link.parentElement, depth = 0; node && depth < 7; node = node.parentElement, depth++) {
-          if ([...node.querySelectorAll('a[href*="grupo.do"]')].filter(a => /copia/i.test(a.textContent)).length > 1) break;
-          const value = node.textContent.trim().replace(/\s+/g, ' ');
-          if (value.length > context.length) context = value;
-        }
-        const number = context.match(/\b(?:n[uú]mero|n[uú]m\.)\s*(?:s\.n\.|\d+[A-Za-z0-9./-]*)/i)?.[0];
-        const months = ['xaneiro enero jan','febreiro febrero feb','marzo mar','abril abr','maio mayo may',
-          'xuno junio jun','xullo julio jul','agosto ago','setembro septiembre setiembre sep',
-          'outubro octubre oct','novembro noviembre nov','decembro diciembre dic'];
-        const normalized = fold(context);
-        const month = months.findIndex(names => names.split(' ').some(name => new RegExp('\\b'+name+'\\b').test(normalized))) + 1;
-        const numeric = context.match(/\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b/);
-        const written = normalized.match(/\b(\d{4})\s+([a-z]+)\s+(\d{1,2})\b/);
-        const reversed = normalized.match(/\b(\d{1,2})\s+(?:de\s+)?([a-z]+)\s+(?:de\s+)?(\d{4})\b/);
-        const named = written || reversed;
-        const namedMonth = named ? months.findIndex(names => names.split(' ').includes(named[2])) + 1 : 0;
-        const date = numeric ? [numeric[3],numeric[2],numeric[1]] :
-          namedMonth ? [written ? written[1] : reversed[3],namedMonth,written ? written[3] : reversed[1]] : null;
-        const formatted = date ? [date[2],date[1],date[0]].map(v=>String(v).padStart(2,'0')).join('/') : '';
-        const label = [number,formatted].filter(Boolean).join(' · ') || 'Ejemplar sin fecha identificada';
-        if (path) issues.set(path,{path,label,month:date ? Number(date[1]) : month || null});
-
-      }
-      return {issues:[...issues.values()]};
+      return {issues:issuesOf(doc, url)};
     }
     const index = base + 'publicaciones/listar_cabeceras.do';
     const letter = p.get('letter') || 'A';
@@ -869,6 +933,7 @@
           return json({count:globalThis.gdpAlto.countMatches(text,query),matches:matches(text,query)});
         }
         case '/api/hemeroteca': return json(await hemeroteca(p, signal));
+        case '/api/day': return json(await onThisDay(p, signal));
         case '/api/collections/sections': return json(sections);
         case '/api/collections': return json(await collections(p, signal));
         case '/api/record': return json(await record(p.get('url'), signal));
