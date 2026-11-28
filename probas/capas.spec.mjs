@@ -184,11 +184,11 @@ test('las referencias salen en gallego', async ({web: {page, open}}) => {
 test.describe('sin instalar', () => {
   test.use({instalada: false});
   // DESIGN.md › Como una app instalada: la web se usa sin instalar; instalar se ofrece, no se exige.
-  // Rediseño (28 nov 2026): instalar se ofrece tras la primera búsqueda y en Acerca de, no en Inicio.
-  test('sin instalar se entra directamente en Buscar, sin tarjeta de instalar', async ({web: {page, open}}) => {
+  // 28 nov 2026 (tarde): Pedro quiere la tarjeta de instalar de vuelta en Inicio, y también en Axustes.
+  test('sin instalar se entra directamente en Buscar, con la tarjeta de instalar en Inicio', async ({web: {page, open}}) => {
     await open(); await expect(page.getByRole('heading', {name: 'Galiciana de Peto', level: 1})).toBeVisible();
     await expect(page.locator('.install-gate')).toHaveCount(0);
-    await expect(page.getByRole('heading', {name: 'Instala GdPeto'})).toHaveCount(0);
+    await expect(page.getByRole('heading', {name: 'Instala GdPeto'})).toBeVisible();
   });
   test('tras la primera búsqueda con resultados se ofrece instalar, una vez por visita', async ({web: {page, open}}) => {
     await open(resultados); await expect(page.locator('.m3-snackbar')).toContainText('Instalada vai mellor');
