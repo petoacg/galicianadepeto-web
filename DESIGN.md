@@ -291,3 +291,9 @@ Letra grande: las etiquetas de chips y botones de cabecera no se parten; se acor
 - Icono adaptativo en capas, compatible con máscara circular y capa monocroma, con variantes rasterizadas para densidades heredadas. Comprobado en el lanzador del Pixel.
 - Lector de pantalla: TalkBack. Aviso legal gallego en `legal_notice_gl.json`.
 - Antes de tocar la APK: «Orde: Data» rota en gallego y `.impeccable/audit/2026-11-22-pendiente-para-la-apk.md`.
+
+### «Tal día como hoxe» precalculado y revisión Emil (28 nov 2026, tarde)
+
+- **«Tal día» no espera a Galiciana.** `pwa/scripts/hoxe-precalcular.mjs` calcula día a día las portadas de hace 60, 80 y 100 años y escribe `pwa/public/hoxe/AAAA-MM.json`. El mes en curso va dentro de la app (`src/hoxe-mes.json`, lo genera el build); los demás son ficheros pequeños en `hoxe/` que el móvil baja solo, 300 ms después de pintar Inicio, y desde el día 20 baja ya el mes siguiente. Si falta un día, se pregunta a Galiciana como antes. Volver a lanzar el script una vez al año (`node scripts/hoxe-precalcular.mjs AAAA-MM-DD AAAA-MM-DD`, reanudable) y publicar.
+- **Campo de fecha de «Un día na hemeroteca».** En Android un `input type=date` vacío se pinta como una flecha suelta. El campo es ahora una etiqueta que llena la fila, con «Escoller data» y una icona de calendario; el input nativo va encima, transparente, y abre el selector del sistema. «Ver» tiene su propio ancho (el `.m3-filled-button` es de ancho completo por defecto).
+- **Revisión Emil de toda la PWA.** Sin `transition: all`, sin `ease-in`, sin `scale(0)`, todo `:hover` dentro de `(hover:hover) and (pointer:fine)`. Todos los botones tienen respuesta al pulsar (la capa de `ripple.ts` y `scale(.97)`), las cifras usan `tabular-nums`, y el foco por teclado se ve en todo. El movimiento de Copilot no se ha tocado.

@@ -8,6 +8,13 @@ const project = new URL('../../', import.meta.url);
 const output = new URL('./build/', import.meta.url);
 // Fonts the page asks for only when a character needs them (unicode-range).
 const lazyFonts = [];
+// «Tal día como hoxe»: the month the app is built in travels inside it (src/hoxe-mes.json), so the
+// first opening shows it with no request at all; the other months are files in hoxe/ the app asks
+// for itself (OnThisDay.tsx). They come from scripts/hoxe-precalcular.mjs.
+const hoxeFiles = await (await import('node:fs/promises')).readdir(new URL('public/hoxe/', project)).catch(() => []);
+const thisMonth = new Date().toISOString().slice(0, 7);
+await writeFile(new URL('src/hoxe-mes.json', project), JSON.stringify(hoxeFiles.includes(thisMonth + '.json')
+  ? {month: thisMonth, days: JSON.parse(await readFile(new URL('public/hoxe/' + thisMonth + '.json', project), 'utf8'))} : {month: '', days: {}}));
 const { outputFiles } = await build({
   absWorkingDir: fileURLToPath(project),
   entryPoints: ['src/main.tsx'],
@@ -157,6 +164,9 @@ if (endpoint) {
     '<script src="./assets/' + transportName + '"></script>' +
     '<script type="module" src="./assets/' + entryJs + '" onerror="gdpFail()"></script></body></html>';
   await writeFile(new URL('index.html',site),page);
+  await rm(new URL('hoxe/',site),{recursive:true,force:true});
+  await mkdir(new URL('hoxe/',site),{recursive:true});
+  for (const name of hoxeFiles.filter(n => /^\d{4}-\d{2}\.json$/.test(n))) await copyFile(new URL('public/hoxe/'+name,project),new URL('hoxe/'+name,site));
   await writeFile(new URL('.nojekyll',site),'');
   // The repository's description: what the app does and how to install it, step by step.
   await copyFile(new URL('pages-README.md',project),new URL('README.md',site));

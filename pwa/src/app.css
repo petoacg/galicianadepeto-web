@@ -1267,3 +1267,20 @@ html body .native-viewer .ocr-overlay .match.active{fill:#F7C64ACC;stroke:#C8901
 .viewer-switch-row{cursor:pointer}
 .viewer-switch-row>span:nth-child(2){flex:1;min-width:0}
 .viewer-switch-row>.m3-switch{flex:none;margin-left:auto}
+/* Auditoría emil 28 nov: as pezas novas responden ao dedo como o resto (mesmo .97 e mesma curva). */
+html body :is(.on-this-day-card,.day-page-issue,.viewer-action-tile,.archive-segment,.reading-history-list button,.about-link){transition:transform .16s var(--ease-out),background .15s}
+html body :is(.on-this-day-card,.day-page-issue,.viewer-action-tile,.archive-segment,.reading-history-list button,.about-link):active:not(:disabled){transform:scale(.97)}
+html body .on-this-day-placeholder .thumbnail{animation:gdp-breathe 1.6s ease-in-out infinite}
+html body :is(.on-this-day-year strong,.archive-segment,.day-page-issue small){font-variant-numeric:tabular-nums}
+/* «Un día na hemeroteca»: o campo de data enche a fila; «Ver» ten o seu tamaño. Android pinta
+ * un campo de data baleiro como unha frecha soa, así que o texto e a icona van por riba. */
+html body .day-picker-row{align-items:stretch}
+html body .day-picker-field{position:relative;flex:1 1 0;min-width:0;display:flex;align-items:center;min-height:48px;border-radius:12px;border:1px solid var(--md-outline-variant);background:var(--canvas);color:var(--ink)}
+html body .day-picker-field input{position:absolute;inset:0;width:100%;height:100%;min-height:0;margin:0;padding:0 44px 0 14px;border:0;border-radius:12px;background:none;-webkit-appearance:none;appearance:none;font:400 16px var(--md-font);color:var(--ink);text-align:left}
+html body .day-picker-field:not(.filled) input{color:transparent}
+html body .day-picker-field input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:auto;height:auto;opacity:0;cursor:pointer}
+html body .day-picker-field>span{padding-left:14px;color:var(--muted);font:400 16px var(--md-font);pointer-events:none}
+html body .day-picker-field>.material-icon,html body .day-picker-field>.svg-icon{position:absolute;right:12px;color:var(--muted);pointer-events:none}
+html body .day-picker-field:focus-within{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary)}
+html body .day-picker .m3-filled-button{flex:none;width:auto;margin:0;min-height:48px;padding:0 24px;border-radius:24px}
+html body .day-picker-field input:focus-visible{outline:none}
