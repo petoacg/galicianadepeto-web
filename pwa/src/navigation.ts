@@ -1,7 +1,7 @@
-/** GalicianaApp.kt activeTab; history and backup fall through to Buscar. */
+/** GalicianaApp.kt activeTab; history, backup and Axustes (opened from Inicio's gear) fall through to Buscar. */
 export function activeTab(screen:string):'home'|'explore'|'saved' {
   if(screen==='saved')return 'saved';
-  return ['explore','hemeroteca','collections','data','about','legal','record'].includes(screen)?'explore':'home';
+  return ['explore','hemeroteca','day','collections','data','record'].includes(screen)?'explore':'home';
 }
 
 export type RootTab='home'|'explore'|'saved';

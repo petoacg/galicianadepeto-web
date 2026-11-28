@@ -184,11 +184,10 @@ test('las referencias salen en gallego', async ({web: {page, open}}) => {
 test.describe('sin instalar', () => {
   test.use({instalada: false});
   // DESIGN.md › Como una app instalada: la web se usa sin instalar; instalar se ofrece, no se exige.
-  test('sin instalar se entra directamente en Buscar, con la invitación a instalar', async ({web: {page, open}}) => {
-    await open(); await expect(page.getByRole('heading', {name: 'Busca en Galiciana'})).toBeVisible();
+  // Rediseño (28 nov 2026): instalar se ofrece tras la primera búsqueda y en Acerca de, no en Inicio.
+  test('sin instalar se entra directamente en Buscar, sin tarjeta de instalar', async ({web: {page, open}}) => {
+    await open(); await expect(page.getByRole('heading', {name: 'Galiciana de Peto', level: 1})).toBeVisible();
     await expect(page.locator('.install-gate')).toHaveCount(0);
-    await expect(page.getByRole('heading', {name: 'Instala GdPeto'})).toBeVisible();
-    await page.getByRole('button', {name: 'Agora non'}).click();
     await expect(page.getByRole('heading', {name: 'Instala GdPeto'})).toHaveCount(0);
   });
   test('tras la primera búsqueda con resultados se ofrece instalar, una vez por visita', async ({web: {page, open}}) => {
@@ -201,7 +200,7 @@ test.describe('sin instalar', () => {
     for (let i = 0; i < 8; i++) { await page.keyboard.press(TAB); expect(await page.evaluate(() => document.activeElement === document.body || !!document.activeElement.closest('.install-gate'))).toBe(true); }
     await page.waitForTimeout(800); expect(thumbs).toEqual([]); expect(log).toEqual([]);
     await page.getByRole('button', {name: 'Seguir no navegador'}).press('Enter');
-    await expect(page.getByRole('heading', {name: 'Busca en Galiciana'})).toBeFocused();
+    await expect(page.getByRole('heading', {name: 'Galiciana de Peto', level: 1})).toBeFocused();
   });
 });
 
@@ -291,7 +290,7 @@ test('desde la búsqueda, las páginas sin número abren con su número y se pas
 test.describe('modo claro', () => {
   test.use({colorScheme: 'light'});
   test('las pantallas son claras y el visor sigue oscuro', async ({web: {page, open}}) => {
-    await open(); await expect(page.getByRole('heading', {name: 'Busca en Galiciana'})).toBeVisible();
+    await open(); await expect(page.getByRole('heading', {name: 'Galiciana de Peto', level: 1})).toBeVisible();
     const fondo = () => page.evaluate(() => getComputedStyle(document.querySelector('.native-home')).backgroundColor);
     expect(await fondo()).toBe('rgb(241, 245, 249)');
     await expect(page.locator('meta[name=theme-color]')).toHaveAttribute('content', '#FBFDFF');

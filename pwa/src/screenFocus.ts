@@ -22,8 +22,10 @@ export function screenTitle(route:Route):string{
   :route.screen==='hemeroteca'?text(route.title)||tr('Hemeroteca','Hemeroteca')
   :route.screen==='collections'?text(route.title)||tr('Coleccións','Colecciones')
   :route.screen==='record'?text(route.title)||tr('Ficha do catálogo','Ficha del catálogo')
-  :route.screen==='data'?text(route.label)||tr('Materias e datos do catálogo','Materias y datos del catálogo')
-  :route.screen==='about'?tr('Acerca de e aviso legal','Acerca de y aviso legal')
+  :route.screen==='day'?tr('Un día na hemeroteca','Un día en la hemeroteca')
+  :route.screen==='data'?text(route.label)||tr('Índices do catálogo','Índices del catálogo')
+  :route.screen==='about'?tr('Axustes','Ajustes')
+  :route.screen==='reading'?tr('Historial de lectura','Historial de lectura')
   :route.screen==='legal'?tr('Aviso legal','Aviso legal'):'';
  return (name?name+' · ':'')+'Galiciana de Peto';
 }

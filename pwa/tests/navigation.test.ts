@@ -1,7 +1,7 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';import {activeTab} from '../src/navigation';
 test('Selected tabs match Android activeTab on every route',()=>{
- for(const screen of ['explore','hemeroteca','collections','data','about','legal','record'])assert.equal(activeTab(screen),'explore');
- for(const screen of ['home','search','history','backup'])assert.equal(activeTab(screen),'home');
+ for(const screen of ['explore','hemeroteca','day','collections','data','record'])assert.equal(activeTab(screen),'explore');
+ for(const screen of ['home','search','history','backup','about','legal','reading'])assert.equal(activeTab(screen),'home');
  assert.equal(activeTab('saved'),'saved');
 });
 

@@ -1,3 +1,4 @@
+import './theme';
 import {startNativeTextScale} from './androidTextScale';
 import {createRoot} from 'react-dom/client';
 import App from './App';

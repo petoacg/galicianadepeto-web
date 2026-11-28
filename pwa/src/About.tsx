@@ -1,29 +1,47 @@
 import {tr} from './i18n';
 import {useState} from 'react';
-import {MaterialIcon, PageTitle} from './components';
+import {MaterialIcon, PageTitle, Thumbnail} from './components';
+import {AlertDialog} from './FolderSheet';
+import type {Hit} from './types';
+import {thumb} from './api';
+import {publicationIdentity} from './publication';
+import {chooseTheme,theme,type Theme} from './theme';
+import {historyOn,setHistoryOn,readingHistory,clearReadingHistory} from './readingHistory';
 import legalEs from './legal.json';
 import legalGl from './legal_gl.json';
 import {chooseLang,lang} from './i18n';
 import {openInstall,installOfferSupported,installOfferOn,setInstallOfferOn} from './InstallGate';
-import {fullscreenSupported,fullscreenOfferOn,setFullscreenOffer,installedApp} from './Fullscreen';
+import {fullscreenSupported,fullscreenOfferOn,setFullscreenOffer,installedApp,enterFullscreen} from './Fullscreen';
 
 function Source({title,url}:{title:string;url:string}) {
   return <a className="native-source" href={url} target="_blank" rel="noopener noreferrer"><span>{title}</span><MaterialIcon name="open_in_new" size={20}/></a>;
 }
-export function About({onBack,onLegal,onBackup}:{onBack:()=>void;onLegal:()=>void;onBackup:()=>void}) {
-  const [other,setOther]=useState(false),[offerOn,setOfferOn]=useState(fullscreenOfferOn),[installOn,setInstallOn]=useState(installOfferOn);
-  return <><PageTitle title={tr('Acerca de','Acerca de')} onBack={onBack}/><div className="native-about">
-    <section><h2 className="about-name">Galiciana de Peto</h2><p className="about-tagline">{tr('Galiciana, de peto.','Galiciana, de bolsillo.')}</p><p className="about-version">{tr('Versión web instalable 0.6.0','Versión web instalable 0.6.0')}</p></section>
-    <p>{tr('Unha aplicación independente para consultar documentos e organizar os teus achados. Non é unha aplicación oficial da Xunta de Galicia.','Una aplicación independiente para consultar documentos y organizar tus hallazgos. No es una aplicación oficial de la Xunta de Galicia.')}</p>
-    <section className="about-language"><h2>{tr('Idioma da aplicación','Idioma de la aplicación')}</h2><div className="about-language-chips" role="radiogroup" aria-label={tr('Idioma da aplicación','Idioma de la aplicación')}>
+export function About({onBack,onLegal,onHistory}:{onBack:()=>void;onLegal:()=>void;onHistory:()=>void}) {
+  const [other,setOther]=useState(false),[fullscreenError,setFullscreenError]=useState(''),[offerOn,setOfferOn]=useState(fullscreenOfferOn),[installOn,setInstallOn]=useState(installOfferOn),[current,setCurrent]=useState<Theme>(theme),[keepHistory,setKeepHistory]=useState(historyOn);
+  const blocked=()=>setFullscreenError(tr('O navegador non permitiu activala.','El navegador no permitió activarla.'));
+  return <><PageTitle title={tr('Axustes','Ajustes')} onBack={onBack}/><div className="native-about">
+    {/* Two parts: the settings themselves, then what the app is and where its documents come from. */}
+    <section className="about-group"><h2>{tr('Idioma','Idioma')}</h2><div className="about-language-chips" role="radiogroup" aria-label={tr('Idioma da aplicación','Idioma de la aplicación')}>
       {([['gl','Galego'],['es','Español']] as const).map(([code,label])=><button key={code} type="button" role="radio" aria-checked={lang()===code} className={'select-chip'+(lang()===code?' selected':'')} onClick={()=>chooseLang(code)}>{lang()===code&&<MaterialIcon name="check" size={18}/>}{label}</button>)}
     </div></section>
-    {installOfferSupported()&&<section className="about-fullscreen"><h2>{tr('Instalación','Instalación')}</h2><label className="m3-switch-row"><span><strong>{tr('Ofrecer instalar a app','Ofrecer instalar la app')}</strong><small>{tr('Unha tarxeta en Inicio e un aviso tras a primeira busca de cada visita.','Una tarjeta en Inicio y un aviso tras la primera búsqueda de cada visita.')}</small></span><input type="checkbox" role="switch" className="m3-switch" checked={installOn} onChange={e=>{setInstallOfferOn(e.target.checked);setInstallOn(e.target.checked)}}/></label></section>}
-    {fullscreenSupported()&&<section className="about-fullscreen"><h2>{tr('Pantalla completa','Pantalla completa')}</h2><label className="m3-switch-row"><span><strong>{tr('Ofrecer pantalla completa ao abrir','Ofrecer pantalla completa al abrir')}</strong><small>{tr('Android sae da pantalla completa ao cambiar de app; este aviso permite recuperala cun toque.','Android sale de la pantalla completa al cambiar de app; este aviso permite recuperarla con un toque.')}</small></span><input type="checkbox" role="switch" className="m3-switch" checked={offerOn} onChange={e=>{setFullscreenOffer(e.target.checked);setOfferOn(e.target.checked)}}/></label></section>}
-    {!installedApp()&&<button className="m3-filled-button about-install" onClick={openInstall}>{tr('Instalar a app','Instalar la app')}</button>}
-    <button className="button full" onClick={onLegal}>{tr('Aviso legal e licenza','Aviso legal y licencia')}</button>
-    <button className="button secondary full" onClick={onBackup}>{tr('Copia dos teus datos','Copia de tus datos')}</button>
-    <section className="about-source-heading"><hr/><h2>{tr('Fontes dos documentos e datos','Fuentes de los documentos y datos')}</h2></section>
+    <section className="about-group"><h2>{tr('Tema','Tema')}</h2><div className="about-language-chips" role="radiogroup" aria-label={tr('Tema','Tema')}>
+      {([['system',tr('Como o teléfono','Como el teléfono')],['light',tr('Claro','Claro')],['dark',tr('Escuro','Oscuro')]] as const).map(([code,label])=><button key={code} type="button" role="radio" aria-checked={current===code} className={'select-chip'+(current===code?' selected':'')} onClick={()=>{chooseTheme(code);setCurrent(code)}}>{current===code&&<MaterialIcon name="check" size={18}/>}{label}</button>)}
+    </div><p className="about-note">{tr('O visor segue sempre en escuro, para que a páxina dixitalizada sexa o máis luminoso.','El visor sigue siempre en oscuro, para que la página digitalizada sea lo más luminoso.')}</p></section>
+    <section className="about-group"><h2>{tr('Historial de lectura','Historial de lectura')}</h2>
+      <label className="m3-switch-row about-row"><span><strong>{tr('Gardar as obras que abro','Guardar las obras que abro')}</strong><small>{tr('Por orde, só neste navegador. Non entra na copia dos teus datos.','Por orden, solo en este navegador. No entra en la copia de tus datos.')}</small></span><input type="checkbox" role="switch" className="m3-switch" checked={keepHistory} onChange={e=>{setHistoryOn(e.target.checked);setKeepHistory(e.target.checked)}}/></label>
+      {(keepHistory||readingHistory().length>0)&&<button className="about-row about-link" onClick={onHistory}><strong>{tr('Ver o historial','Ver el historial')}</strong><MaterialIcon name="chevron_right"/></button>}
+    </section>
+    {(!installedApp()||installOfferSupported()||fullscreenSupported())&&<section className="about-group"><h2>{tr('Esta app no teléfono','Esta app en el teléfono')}</h2>
+      {!installedApp()&&<div className="about-row"><span><strong>{tr('Instalar GdPeto','Instalar GdPeto')}</strong><small>{tr('Como unha app, coa súa icona.','Como una app, con su icono.')}</small></span><button className="m3-outlined-button" onClick={openInstall}>{tr('Instalar','Instalar')}</button></div>}
+      {installOfferSupported()&&<label className="m3-switch-row about-row"><span><strong>{tr('Lembrarme instalala','Recordarme instalarla')}</strong><small>{tr('Un aviso tras a primeira busca de cada visita.','Un aviso tras la primera búsqueda de cada visita.')}</small></span><input type="checkbox" role="switch" className="m3-switch" checked={installOn} onChange={e=>{setInstallOfferOn(e.target.checked);setInstallOn(e.target.checked)}}/></label>}
+      {fullscreenSupported()&&!installedApp()&&<div className="about-row"><span><strong>{tr('Pantalla completa','Pantalla completa')}</strong><small>{fullscreenError||tr('Agocha as barras do navegador.','Oculta las barras del navegador.')}</small></span><button className="m3-outlined-button" onClick={()=>{setFullscreenError('');void enterFullscreen().then(ok=>{if(!ok)blocked()}).catch(blocked)}}>{tr('Activar','Activar')}</button></div>}
+      {fullscreenSupported()&&<label className="m3-switch-row about-row"><span><strong>{tr('Ofrecer pantalla completa ao abrir','Ofrecer pantalla completa al abrir')}</strong><small>{tr('Android sae dela ao cambiar de app; o aviso permite recuperala cun toque.','Android sale de ella al cambiar de app; el aviso permite recuperarla con un toque.')}</small></span><input type="checkbox" role="switch" className="m3-switch" checked={offerOn} onChange={e=>{setFullscreenOffer(e.target.checked);setOfferOn(e.target.checked)}}/></label>}
+    </section>}
+    <h2 className="about-part">{tr('Acerca de','Acerca de')}</h2>
+    <section className="about-identity"><p className="about-name">Galiciana de Peto</p><p className="about-tagline">{tr('Galiciana, de peto.','Galiciana, de bolsillo.')}</p><p className="about-version">{tr('Versión web instalable 0.6.0','Versión web instalable 0.6.0')}</p>
+    <p>{tr('Unha aplicación independente para consultar documentos e organizar os teus achados. Non é unha aplicación oficial da Xunta de Galicia.','Una aplicación independiente para consultar documentos y organizar tus hallazgos. No es una aplicación oficial de la Xunta de Galicia.')}</p></section>
+    <button className="about-row about-link" onClick={onLegal}><strong>{tr('Aviso legal e licenza','Aviso legal y licencia')}</strong><MaterialIcon name="chevron_right"/></button>
+    <section className="about-group"><h2>{tr('Fontes dos documentos e datos','Fuentes de los documentos y datos')}</h2>
     <Source title="Biblioteca Dixital de Galicia" url="https://biblioteca.galiciana.gal"/>
     <Source title="Galiciana Patrimonio Dixital" url="https://www.galiciana.gal/arpadhub/es/inicio/inicio.do"/>
     <Source title={tr('Datos abertos de Galiciana','Datos abiertos de Galiciana')} url="https://datos-abertos.galiciana.gal/arpad-bibdix-lod/"/>
@@ -36,7 +54,19 @@ export function About({onBack,onLegal,onBackup}:{onBack:()=>void;onLegal:()=>voi
       <Source title="Hispana" url="https://hispana.mcu.es"/>
       <Source title="Europeana" url="https://www.europeana.eu"/>
       <Source title="Digital Public Library of America" url="https://dp.la"/>
-    </>}
+    </>}</section>
+  </div></>;
+}
+/** Axustes › Historial de lectura: the works opened, newest first. */
+export function ReadingHistory({onBack,onOpen}:{onBack:()=>void;onOpen:(hit:Hit)=>void}){
+  const [list,setList]=useState(readingHistory),[ask,setAsk]=useState(false);
+  const when=(at:number)=>new Date(at).toLocaleString(lang()==='gl'?'gl-ES':'es-ES',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+  return <><PageTitle title={tr('Historial de lectura','Historial de lectura')} onBack={onBack}/><div className="content reading-history">
+    {!historyOn()&&<p className="muted">{tr('O historial está apagado: non se engaden obras novas.','El historial está apagado: no se añaden obras nuevas.')}</p>}
+    {!list.length?<p>{tr('Aínda non abriches ningunha obra con el aceso.','Todavía no has abierto ninguna obra con él encendido.')}</p>:<>
+    <ol className="reading-history-list">{list.map(v=>{const id=publicationIdentity(v.title,v.parentTitle);return <li key={v.path}><button onClick={()=>onOpen({path:v.path,position:v.position,imageId:v.imageId,title:v.title,parentTitle:v.parentTitle,snippets:[]})}><Thumbnail src={thumb({imageId:v.imageId})}/><span><strong>{id.shortTitle||v.title}</strong><small>{[id.date,tr(`páx. ${v.position}`,`pág. ${v.position}`)].filter(Boolean).join(' · ')}</small><small>{when(v.at)}</small></span></button></li>})}</ol>
+    <button className="text-button" onClick={()=>setAsk(true)}>{tr('Borrar o historial','Borrar el historial')}</button></>}
+    {ask&&<AlertDialog title={tr('Borrar o historial?','¿Borrar el historial?')} text={tr('Quítanse todas as obras desta lista. Os teus gardados e notas non se tocan.','Se quitan todas las obras de esta lista. Tus guardados y notas no se tocan.')} confirm={tr('Borrar','Borrar')} onConfirm={()=>{clearReadingHistory();setList([]);setAsk(false)}} onCancel={()=>setAsk(false)}/>}
   </div></>;
 }
 export function Legal({onBack}:{onBack:()=>void}) {

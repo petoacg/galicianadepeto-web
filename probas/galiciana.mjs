@@ -24,6 +24,8 @@ export async function simulate(context, log, slow = () => 0, options = {}) {
       const {name, args} = JSON.parse(request.postData());
       // The warm-up when the search field gets focus (api.ts warmUp): answered like Apps Script, not logged.
       if (name === 'calentar') return route.fulfill({json: {ok: false, error: 'Operación no admitida.'}, headers: {'access-control-allow-origin': '*'}}).catch(() => {});
+      // «Tal día como hoxe» on Inicio asks for the year lists of the dailies: an empty year, not logged, unless a test gives one.
+      if (name === 'catalogoReferencia' && /numeros_por_mes/.test(args[0])) return route.fulfill({json: {ok: true, value: options.ano?.(args[0]) ?? '<html><body><p>Sen números</p></body></html>'}, headers: {'access-control-allow-origin': '*'}}).catch(() => {});
       log.push(name + (name === 'recursoReferencia' ? ':' + args[0] + ':' + args[2] : name === 'buscarReferencia' ? ':' + args[0].query : ''));
       if (name === 'buscarReferencia') { await new Promise(done => setTimeout(done, slow(args[0].query))); log.push('resposta:' + args[0].query); }
       if (name === 'recursoReferencia' && args[0] === 'mets' && options.waitMets) await options.waitMets();

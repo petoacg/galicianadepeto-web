@@ -47,7 +47,7 @@ Página real aportada: El Pueblo Gallego, 01/07/1975, página 15, grupo 1264535.
 
 ## Navigation and scope
 
-Hemeroteca ofrece el índice alfabético de periódicos y revistas y sus años/números. Colecciones agrupa otros tipos de documentos, con una ficha antes de abrir la copia. Materias y datos del catálogo separa índices y herramientas técnicas de la búsqueda OCR. «Sucesos y sociedad» es una opción temática orientativa dentro de los filtros generales, no un repositorio ni una clasificación editorial del archivo.
+Hemeroteca ofrece el índice alfabético de periódicos y revistas y sus años/números. «Tal día como hoxe» (Inicio) y «Un día na hemeroteca» (Explorar) abren los diarios de un día concreto: es una puerta de entrada al archivo, no un calendario de efemérides redactado. Colecciones agrupa otros tipos de documentos, con una ficha antes de abrir la copia. «Índices do catálogo» (antes Materias y datos del catálogo) separa índices y herramientas técnicas de la búsqueda OCR. «Sucesos y sociedad» es una opción temática orientativa dentro de los filtros generales, no un repositorio ni una clasificación editorial del archivo.
 
 ## Datos de investigación y portabilidad
 
@@ -69,3 +69,4 @@ Publicada en https://petoacg.github.io/galicianadepeto-web/ (GitHub Pages), con 
 
 La interfaz está en gallego por defecto y en español a elección del usuario, desde Acerca de, por indicación del usuario. El contenido de los documentos se muestra como lo ofrece Galiciana.
 
+Axustes reúne lo que se elige una vez (idioma, tema, historial de lectura, instalar) y, debajo, Acerca de con el aviso legal y las fuentes. El historial de lectura está apagado por defecto: es un rastro personal y no viaja en la copia.

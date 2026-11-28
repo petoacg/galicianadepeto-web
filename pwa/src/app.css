@@ -1070,7 +1070,7 @@ html body .install-card-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:w
  * (#1C1A17) is what keeps the facsimile's own colours, so .native-viewer re-declares the dark
  * roles, and the roles built from them, for everything inside it. */
 @media (prefers-color-scheme:light){
- :root{color-scheme:light;
+ :root:not([data-theme="dark"]){color-scheme:light;
  --md-primary:#1F6394;--md-on-primary:#FFFFFF;
  --md-primary-container:#CDE5FF;--md-on-primary-container:#00243D;
  --md-secondary:#4C6173;--md-on-secondary:#FFFFFF;
@@ -1088,6 +1088,25 @@ html body .install-card-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:w
  --md-error:#B3261E;
  --folder-amber:#A06E00;
 }
+}
+/* Axustes › Tema: «Claro» elixido aínda que o teléfono estea en escuro. */
+:root[data-theme="light"]{color-scheme:light;
+ --md-primary:#1F6394;--md-on-primary:#FFFFFF;
+ --md-primary-container:#CDE5FF;--md-on-primary-container:#00243D;
+ --md-secondary:#4C6173;--md-on-secondary:#FFFFFF;
+ --md-secondary-container:#D2E5F6;--md-on-secondary-container:#0B1E2C;
+ --md-tertiary:#2F6577;--md-on-tertiary:#FFFFFF;
+ --md-tertiary-container:#BDE9FB;--md-on-tertiary-container:#001F29;
+ --md-background:#F1F5F9;--md-on-background:#161C22;
+ --md-surface:#FBFDFF;--md-on-surface:#161C22;
+ --md-surface-variant:#E1E7ED;--md-on-surface-variant:#40484F;
+ --md-outline:#707880;--md-outline-variant:#C3CAD1;
+ --md-surface-dim:#D8DEE4;--md-surface-container-lowest:#FFFFFF;--md-surface-container-low:#F6F9FC;
+ --md-surface-container:#EDF1F5;--md-surface-container-high:#E7ECF1;--md-surface-container-highest:#E1E7EC;
+ --md-surface-bright:#FFFFFF;
+ --md-inverse-surface:#2B3137;--md-inverse-on-surface:#EDF1F5;--md-inverse-primary:#8BCCFF;
+ --md-error:#B3261E;
+ --folder-amber:#A06E00;
 }
 .native-viewer{color-scheme:dark;
  /* colour roles */
@@ -1143,3 +1162,79 @@ html:not(:has(.native-viewer)){scrollbar-gutter:stable}
 @media (prefers-reduced-motion:reduce){html body .m3-linear-progress::after{width:100%;transform:none;animation:gdp-breathe 2s ease-in-out infinite}html body .page-skeleton::after{animation:none;opacity:0}html body .page-skeleton{animation:gdp-breathe 2s ease-in-out infinite}}
 /* O visor é sempre escuro: redefine --ink, pero o texto que herda a cor da páxina tamén ten que tomala, ou en modo claro o título queda en tinta escura sobre a barra escura. */
 html body .native-viewer{color:var(--ink)}
+
+/* Rediseño 28 nov 2026 (maqueta aprobada por Pedro): cada cosa en un solo sitio, «Tal día como hoxe»,
+   Gardados con pestañas. Sólo estructura y color: el movimiento sigue siendo el de arriba. */
+html body .native-home-search{margin-top:0}
+html body .native-search-links{justify-content:flex-end;min-height:40px}
+.on-this-day{margin:20px -20px 0;padding:20px 0 24px;background:var(--md-surface-container-low);border-block:1px solid var(--md-outline-variant)}
+.on-this-day-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:0 20px}
+.on-this-day-head h2{margin:0;font:var(--md-title-l);color:var(--ink)}
+.on-this-day-head span{font:var(--md-body-m);color:var(--muted)}
+.on-this-day-row{display:flex;gap:14px;overflow-x:auto;padding:16px 20px 4px;scroll-snap-type:x mandatory;scroll-padding-inline:20px;scrollbar-width:none;overscroll-behavior-x:contain}
+.on-this-day-row::-webkit-scrollbar{display:none}
+.on-this-day-card{flex:0 0 min(196px,52vw);display:flex;flex-direction:column;gap:10px;padding:0;border:0;background:none;color:var(--ink);text-align:left;scroll-snap-align:start;cursor:pointer;font:inherit}
+.on-this-day-card .thumbnail{display:block;width:100%;aspect-ratio:2/2.9;height:auto;object-fit:cover;object-position:top;border-radius:4px;background:#E8E2D4}
+.on-this-day-placeholder .thumbnail{background:var(--md-surface-container-high)}
+.on-this-day-year{display:flex;align-items:baseline;gap:8px}
+.on-this-day-year strong{font:700 calc(32/16*1rem)/calc(36/16*1rem) var(--md-font);letter-spacing:-.5px}
+.on-this-day-year span{font:var(--md-label-l);color:var(--primary)}
+.on-this-day-card small{margin-top:-6px;font:var(--md-body-m);color:var(--muted)}
+.on-this-day-placeholder .on-this-day-year strong{color:var(--md-outline-variant)}
+.on-this-day-error{margin:12px 20px 0;font:var(--md-body-m);color:var(--muted)}
+.on-this-day-card:focus-visible{outline:2px solid var(--primary);outline-offset:4px;border-radius:6px}
+html body .native-saved-heading{justify-content:space-between}
+html body .native-saved-heading h2{margin:0}
+
+/* Explorar: sin frase de entrada; «Un día na hemeroteca» bajo la Hemeroteca. */
+.day-picker{display:flex;flex-direction:column;gap:6px;margin:4px 0 8px;padding:20px;border-radius:16px;background:var(--md-surface-container)}
+.day-picker strong{font:var(--md-title-m);color:var(--ink)}
+.day-picker>span{font:var(--md-body-m);color:var(--muted)}
+.day-picker-row{display:flex;gap:8px;margin-top:8px}
+.day-picker input{flex:1;min-width:0;min-height:48px;box-sizing:border-box;padding:0 14px;border-radius:12px;border:1px solid var(--md-outline-variant);background:var(--canvas);color:var(--ink);font:400 16px var(--md-font);color-scheme:inherit}
+.day-picker .m3-filled-button{min-height:48px}
+.day-page-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:20px 14px}
+.day-page-issue{display:flex;flex-direction:column;gap:6px;padding:0;border:0;background:none;color:var(--ink);text-align:left;font:inherit;cursor:pointer}
+.day-page-issue .thumbnail{width:100%;aspect-ratio:2/2.9;height:auto;object-fit:cover;object-position:top;border-radius:4px;background:#E8E2D4}
+.day-page-issue strong{font:var(--md-title-s)}
+.day-page-issue small{font:var(--md-body-s);color:var(--muted)}
+
+/* Gardados: tres pestañas, la búsqueda tras la lupa, y en cada página un solo menú. */
+.archive-segments{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));height:44px;margin:4px 0 0;border:1px solid var(--md-outline-variant);border-radius:999px;overflow:hidden}
+.archive-segment{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-left:1px solid var(--md-outline-variant);background:transparent;color:var(--muted);font:var(--md-label-l);cursor:pointer}
+.archive-segment:first-child{border-left:0}
+.archive-segment[aria-pressed="true"]{background:var(--container);color:var(--md-on-primary-container);font-weight:600}
+.archive-segment-count{font-variant-numeric:tabular-nums;opacity:.8}
+html body .archive-saved .archive-native-content>.field{margin-bottom:12px}
+html body .archive-saved .archive-folder-chips{margin-top:8px}
+html body .archive-saved .archive-work-head{padding:24px 0 8px}
+html body .archive-saved .archive-native-hit{padding:16px 0;border-bottom:1px solid var(--md-outline-variant)}
+html body .archive-saved .archive-native-hit-content{gap:16px}
+html body .archive-saved .archive-preview .thumbnail{width:92px;height:132px;border-radius:4px;object-fit:cover;object-position:top}
+html body .archive-saved .archive-page-actions{padding:0;margin:-8px -10px 4px 0;min-height:40px}
+html body .archive-saved .archive-page-label{font:var(--md-title-s);color:var(--ink)}
+.archive-item-menu{position:relative}
+.archive-item-menu .icon-button{color:var(--muted)}
+.archive-item-folders{display:flex;align-items:center;gap:4px;margin:8px 0 0;font:var(--md-body-s);color:var(--muted)}
+.archive-item-folders .material-icon{color:var(--folder-amber)}
+html body .archive-saved .archive-history{margin-top:16px}
+
+/* Acerca de: una lista agrupada; cada ajuste una vez. */
+.about-group{margin-top:28px}
+.about-group h2{margin:0 0 4px;font:var(--md-title-s);color:var(--primary)}
+.about-row{display:flex;align-items:center;gap:16px;min-height:64px;padding:8px 0;border-bottom:1px solid var(--md-outline-variant)}
+.about-row>span{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.about-row strong{font:var(--md-body-l);font-weight:500;color:var(--ink)}
+.about-row small{font:var(--md-body-m);color:var(--muted)}
+.about-link{width:100%;background:none;border:0;border-bottom:1px solid var(--md-outline-variant);justify-content:space-between;text-align:left;cursor:pointer;color:var(--ink)}
+/* Axustes: the second part, «Acerca de», and the reading history. */
+.native-about .about-part{margin:32px 0 8px;padding-top:24px;border-top:1px solid var(--md-outline-variant,#253746);font-size:1.375rem;font-weight:600;color:var(--ink)}
+.native-about .about-identity .about-name{font-size:1.25rem;line-height:1.4}
+.native-about .about-tagline,.native-about .about-version{margin:0;color:var(--muted)}
+.native-about .about-note{margin:8px 0 0;color:var(--muted);font-size:.875rem;line-height:1.45}
+.reading-history-list{list-style:none;margin:0 0 16px;padding:0}
+.reading-history-list li button{display:flex;gap:16px;align-items:center;width:100%;min-height:96px;padding:12px 0;border:0;border-bottom:1px solid var(--md-outline-variant,#253746);background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.reading-history-list .thumbnail{flex:0 0 56px;width:56px;height:80px}
+.reading-history-list span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.reading-history-list strong{font-weight:500;overflow-wrap:anywhere}
+.reading-history-list small{color:var(--muted)}

@@ -67,7 +67,7 @@ Lo que más importa en esta app es la **agilidad**: todo responde al instante y 
 
 ## Colors
 
-**La app sigue el modo claro u oscuro del teléfono.** Los colores viven como roles en `pwa/src/app.css` (`--md-*`): el oscuro es el de siempre, que salió de las capturas del Pixel, y el claro, su pareja con el mismo azul. Ningún rol queda en la paleta violácea por defecto de Material. Ningún color de interfaz se escribe a mano fuera de los roles: así cambiar de modo es cambiar un solo bloque.
+**La app sigue el modo claro u oscuro del teléfono, salvo que en Axustes se elija «Claro» o «Escuro»** (`pwa/src/theme.ts`, atributo `data-theme` en `<html>`). Los colores viven como roles en `pwa/src/app.css` (`--md-*`): el oscuro es el de siempre, que salió de las capturas del Pixel, y el claro, su pareja con el mismo azul. Ningún rol queda en la paleta violácea por defecto de Material. Ningún color de interfaz se escribe a mano fuera de los roles: así cambiar de modo es cambiar un solo bloque.
 <!-- 2026-11-25: antes era siempre oscura; Pedro aceptó seguir al sistema tras la revisión con ask-emil -->
 
 **El visor es siempre oscuro.** Las páginas escaneadas son papel amarillento con márgenes grises: sobre blanco se ven sucias y el blanco de alrededor deslumbra más que la propia página. Sobre un fondo oscuro neutro la página es lo más luminoso de la pantalla, como en Fotos o Libros a pantalla completa. Al entrar en el visor desde una pantalla clara, la sala se oscurece en un fundido (ver «Movimiento»), nunca de golpe. Las hojas y menús que se abren desde el visor sí siguen el modo del teléfono.
@@ -204,9 +204,8 @@ Lo lento de esta app no es el teléfono sino el camino hasta los datos: GitHub P
 ## Como una app instalada
 
 - **La web se usa sin instalar desde el primer momento.** Instalar se ofrece, no se exige: no hay pantalla previa que tape la app.
-  - Al abrir, una tarjeta en Inicio, «Instala GdPeto», explica por qué va mejor (se abre al momento desde el icono, a pantalla completa y sin barras del navegador) con «Instalar» y «Agora non».
   - Tras la primera búsqueda con resultados de cada visita, un aviso con el mismo texto y «Instalar».
-  - Las dos invitaciones se repiten en cada visita hasta que se instala. «Agora non» las guarda hasta la siguiente visita; Acerca de tiene un interruptor para apagarlas del todo. Mientras se ofrece instalar, no se ofrece además la pantalla completa.
+  - El aviso se repite en cada visita hasta que se instala. Axustes tiene una fila «Instalar GdPeto» y un interruptor para apagar el aviso del todo. Desde el rediseño del 28 nov 2026 ya no hay tarjeta en Inicio. Mientras se ofrece instalar, no se ofrece además la pantalla completa.
   - «Instalar» abre la pantalla con los pasos de cada navegador (`?instalar`, `InstallGate.tsx`).
 
   Por qué: la meta es que la gente acabe instalándola, pero un muro delante de la app espanta a quien sólo quiere probar. La invitación llega cuando la app ya ha demostrado que sirve.
@@ -217,6 +216,14 @@ Lo lento de esta app no es el teléfono sino el camino hasta los datos: GitHub P
 - **Barra de estado:** toma el color de lo que hay arriba en cada modo; en el visor, el de su barra, y leyendo sin controles, el del escenario (`#1C1A17`).
 - **Teclado:** los campos de búsqueda llevan la tecla «Buscar» (`enterKeyHint`), el de ir a una página, «Ir», y ninguno autocompleta.
 
+## Rediseño del 28 de noviembre de 2026
+<!-- Maqueta aprobada: https://claude.ai/artifact/4vACKKzrXYEuULineTbKMF · «Sí, impleméntala» -->
+- **Inicio**: título «Galiciana de Peto», engranaje a Axustes, el campo de busca, «Buscar con filtros», «Tal día como hoxe», «Continuar lendo» y «Gardado hai pouco» (seis, con «Ver todos»). Sin obras destacadas, sin tarjeta de instalar y sin pantalla completa: cada cosa vive en un solo sitio.
+- **Tal día como hoxe**: la portada de un diario gallego de este mismo día hace 60, 80 y 100 años (Galiciana no tiene diarios de 1986, por eso no 40). Si ese día no salió (los lunes), el número de hasta tres días antes, y se dice. Se pide 300 ms después de pintar Inicio y se guarda ese día (`gdpeto-hoxe-<fecha>`). En Explorar, «Un día na hemeroteca» abre todos los diarios de cualquier fecha entre 1871 y 1981.
+- **Gardados**: tres segmentos con su número (Páxinas, Notas, Buscas); la busca se abre con la lupa de la barra; cada página tiene un solo ⋮ con Nota, Cartafoles y Quitar. Las buscas guardadas viven aquí.
+- **Axustes** (antes Acerca de), en dos partes. Arriba los ajustes: Idioma, Tema (Como o teléfono / Claro / Escuro; el visor sigue siempre oscuro), Historial de lectura (apagado por defecto; guarda por orden cada obra abierta, sólo en este navegador y fuera de la copia) y Esta app no teléfono. Abajo, Acerca de: identidad, aviso legal y fuentes.
+- El movimiento hecho con Copilot (toques, visor, cargas) no se tocó.
+
 ## Decisiones de producto (web y APK)
 
 ### Investigación y copias · 0.4.0
@@ -225,7 +232,7 @@ Inicio identifica ejemplares con cabecera breve, fecha y número cuando la fuent
 
 Las fichas muestran etiqueta y valor, derechos y enlace al registro original; los campos largos y el texto íntegro se despliegan sin eliminar contenido. Las galerías reservan una superficie consistente para miniaturas ausentes.
 
-Copia de tus datos está en Gardados y en Acerca de. Exportar y abrir una copia son acciones distintas; la vista previa muestra cantidades y diferencias antes de importar. Combinar es la opción predeterminada. La interfaz no usa jerga de checksum, preferencias tipadas o manifiestos para explicar la tarea.
+Copia de tus datos está en el ⋮ de Gardados. Exportar y abrir una copia son acciones distintas; la vista previa muestra cantidades y diferencias antes de importar. Combinar es la opción predeterminada. La interfaz no usa jerga de checksum, preferencias tipadas o manifiestos para explicar la tarea.
 
 ### Icono
 
@@ -241,11 +248,11 @@ Gardados: sin carpeta elegida se muestran y se buscan todas las páginas. «Arqu
 
 Resultados: mientras Galiciana no responde se muestra «Buscando en Galiciana…», nunca un recuento a cero. Un fallo ofrece «Reintentar» y conserva consulta y filtros. La primera vez que hay resultados, una pista explica la vieira y el icono de nota.
 
-Barras de altura fija (etiquetas de navegación, títulos del visor y del editor de notas): el texto sigue el tamaño del sistema hasta el 130 %. El contenido escala sin límite. La cabecera de Inicio queda fija y el contenido no se desliza bajo la barra de estado. La pestaña activa sigue el destino desde el que se llegó a Acerca de, Aviso legal, Copia de tus datos y las fichas.
+Barras de altura fija (etiquetas de navegación, títulos del visor y del editor de notas): el texto sigue el tamaño del sistema hasta el 130 %. El contenido escala sin límite. La cabecera de Inicio queda fija y el contenido no se desliza bajo la barra de estado. Axustes, Aviso legal, Historial de lectura y Copia de tus datos cuelgan de Buscar (se llega desde el engranaje de Inicio); las fichas siguen el destino desde el que se llegó.
 
 ### Idiomas · galego por defecto
 
-A interface ofrécese en galego (por defecto) e en español, elixible en Acerca de. Cambiar o idioma recarga a páxina na web (`pwa/src/i18n.ts`) e recrea a pantalla na APK, sen reiniciar a app. Os textos viven no código como pares `tr("galego", "español")`; todo texto novo engádese nos dous idiomas. Vocabulario galego: Gardados, páxina gardada, cartafol, busca, Nota de referencia (sen cambios), Arquivador xeral, Quitar / Eliminar / Borrar co mesmo reparto que en español. Os termos seguen a versión galega de Galiciana.
+A interface ofrécese en galego (por defecto) e en español, elixible en Axustes. Cambiar o idioma recarga a páxina na web (`pwa/src/i18n.ts`) e recrea a pantalla na APK, sen reiniciar a app. Os textos viven no código como pares `tr("galego", "español")`; todo texto novo engádese nos dous idiomas. Vocabulario galego: Gardados, páxina gardada, cartafol, busca, Nota de referencia (sen cambios), Arquivador xeral, Quitar / Eliminar / Borrar co mesmo reparto que en español. Os termos seguen a versión galega de Galiciana.
 
 Non se traducen: os títulos, extractos e campos que chegan de Galiciana; os temas orientativos da busca (son palabras que se engaden á consulta sobre prensa en español); o nome almacenado do cartafol «Archivador general», do que só se traduce a etiqueta, para non alterar datos gardados nin copias. O aviso legal ten versión galega propia.
 
@@ -257,7 +264,7 @@ Visor: deslizar horizontalmente con un dedo sobre la página entera pasa de pág
 
 Pasar página: la página anterior sale hacia el lado del gesto mientras la nueva entra por el contrario, sin esperar a que se descargue su imagen: si aún no ha llegado, entra con la misma silueta y la carga, y permite reintentar si falla. Para la salida se guarda una copia ajustada a la pantalla, nunca la imagen completa, y se libera al terminar. Con «reducir movimiento» la nueva aparece sin movimiento al soltar, pero mientras se arrastra la página sigue al dedo.
 
-Navegación: una búsqueda escrita en Inicio abre directamente los resultados y Atrás vuelve a Inicio; el formulario sólo es un paso cuando se ha abierto. Explorar y Gardados comparten barra sin flecha; Inicio conserva la cabecera de marca con una vieira decorativa y no repite el enlace a Acerca de (está en su cabecera y en Explorar).
+Navegación: una búsqueda escrita en Inicio abre directamente los resultados y Atrás vuelve a Inicio; el formulario sólo es un paso cuando se ha abierto. Explorar y Gardados comparten barra sin flecha; Inicio lleva «Galiciana de Peto» como título y un único engranaje que abre Axustes; Explorar ya no repite Acerca de.
 
 Inicio: el campo es la búsqueda. Se lanza con la tecla del teclado o con el botón de buscar dentro del campo, que aparece al escribir; el botón ancho «Buscar» sólo se muestra cuando hay texto.
 

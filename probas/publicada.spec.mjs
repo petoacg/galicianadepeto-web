@@ -12,10 +12,13 @@ const test = base.extend({
     const errors = [];
     page.on('pageerror', error => errors.push(String(error)));
     // Como instalada: en una pestaña normal saldría encima la pantalla de instalación.
+    // «Tal día como hoxe» ya respondido hoy: en WebKit con service worker la petición saldría a la red real.
+    await page.addInitScript(() => { const d = new Date(), day = [d.getFullYear(), d.getMonth() + 1, d.getDate()].map((v, i) => String(v).padStart(i ? 2 : 4, '0')).join('-');
+      try { localStorage.setItem('gdpeto-hoxe-' + day, JSON.stringify({date: day, items: []})); } catch {} });
     await page.addInitScript(() => { const original = window.matchMedia.bind(window);
       window.matchMedia = query => /display-mode:\s*standalone/.test(query) ? original('all') : original(query); });
     await context.route(url => url.hostname !== '127.0.0.1', route => route.abort());
-    await use({page, site, errors, ready: () => expect(page.getByRole('heading', {name: 'Busca en Galiciana'})).toBeVisible(),
+    await use({page, site, errors, ready: () => expect(page.getByRole('heading', {name: 'Galiciana de Peto', level: 1})).toBeVisible(),
       controlled: async () => {
         await page.evaluate(() => navigator.serviceWorker.ready);
         await page.waitForFunction(() => navigator.serviceWorker.controller);
@@ -257,7 +260,8 @@ test('lo guardado y sus notas se abren sin conexión', async ({app, context, bro
   await page.goto(app.site.url); await app.ready();
   await page.getByRole('navigation', {name: 'Navegación principal'}).getByRole('button', {name: 'Gardados', exact: true}).click();
   await expect(page.getByText(obra.title).first()).toBeVisible();
-  await page.getByRole('button', {name: /nota de referencia/i}).first().click();
+  await page.getByRole('button', {name: /^Opcións da páxina/}).first().click();
+  await page.getByRole('menuitem', {name: /nota de referencia/i}).click();
   await expect(page.getByRole('dialog')).toBeVisible();
 });
 test('todo lo que nombra el service worker existe', async ({site, request}) => {
