@@ -1321,3 +1321,5 @@ html body .search-screen .result-controls .m3-menu-anchor>.text-button{min-width
 html body .search-screen .result-controls>.result-details{min-width:calc(var(--sp-14,.875rem) * 5.5)}
 /* «Continuar lendo»: os datos do número caben en dúas liñas como moito; a tarxeta non medra co título. */
 html body .native-continue small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* Teléfonos de 320 px: co botón de pantalla completa, o nome da app non debe cortarse. */
+@media (max-width:359px){html body .tab-root-bar h1{font-size:19px}}

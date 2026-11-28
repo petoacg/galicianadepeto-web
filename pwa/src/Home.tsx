@@ -4,6 +4,7 @@ import type {Hit, Route, SearchPreset} from './types';
 import {BASE, emptyPreset, errorText, thumb, warmUp} from './api';
 import {MaterialIcon, ShellIcon, Status, Thumbnail, TabRootBar} from './components';
 import {InstallCard} from './InstallGate';
+import {enterFullscreen, fullscreenSupported} from './Fullscreen';
 import {TodayInHistory} from './OnThisDay';
 import {store, type ArchiveSnapshot} from './storage';
 import {publicationIdentity, publicationDetails} from './publication';
@@ -29,6 +30,20 @@ export default function Home({onOpen, onSearch, navigate}: Props) {
   const [data, setData] = useState<ArchiveSnapshot>();
   const [query, setQuery] = useState(() => {try{return sessionStorage.getItem('gdpeto-home-query') || '';}catch{return '';}});
   const [error, setError] = useState('');
+  // In a browser tab (not installed) full screen is one tap away from Inicio, not only in Axustes.
+  const [fullscreen, setFullscreen] = useState(() => Boolean(document.fullscreenElement));
+  useEffect(() => {
+    const update = () => setFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', update);
+    return () => document.removeEventListener('fullscreenchange', update);
+  }, []);
+  async function toggleFullscreen() {
+    setError('');
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else if (!await enterFullscreen()) throw new Error('Fullscreen unavailable');
+    } catch {setError(tr('O navegador non permitiu activar a pantalla completa.','El navegador no permitió activar la pantalla completa.'));}
+  }
   useEffect(() => {
     const refresh = () => store.snapshot().then(setData).catch(e => setError(errorText(e)));
     void refresh();
@@ -43,6 +58,7 @@ export default function Home({onOpen, onSearch, navigate}: Props) {
   return <div className="native-home">
     {/* Axustes (language, theme, install, full screen, about) from the gear; install and «As túas buscas» are also here, where a first visit looks. */}
     <TabRootBar title="Galiciana de Peto">
+      {fullscreenSupported() && <button className="icon-button" aria-label={fullscreen ? tr('Saír da pantalla completa','Salir de pantalla completa') : tr('Pantalla completa','Pantalla completa')} onClick={() => void toggleFullscreen()}><MaterialIcon name={fullscreen ? 'fullscreen_exit' : 'fullscreen'}/></button>}
       <button className="icon-button" aria-label={tr('Axustes','Ajustes')} onClick={() => navigate({screen: 'about'})}><MaterialIcon name="settings"/></button>
     </TabRootBar>
     <div className="native-home-content">
