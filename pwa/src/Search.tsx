@@ -141,7 +141,7 @@ onSubmit({...draft,advanced:filtered},form)};
  {!!preset.query&&draft.query!==preset.query&&<p className="result-note">{tr('Consulta aplicada','Consulta aplicada')}: {preset.query}</p>}
  <div className="result-controls"><button className="text-button" onClick={()=>{setDraft({...draft,advanced:true});onFilters?onFilters():setForm(true)}}><MaterialIcon name="tune" size={18}/>{tr('Filtros','Filtros')}</button>
  <SortMenu disabled={loading} label={tr(`Orde: ${sortName(sort)}`,`Orden: ${sortName(sort)}`)} items={(['Relevancia','Titulo','Autor','Fecha'] as const).map(k=>({label:sortName(k),active:sort===k,detail:k==='Relevancia'?undefined:asc?'ascendente':'descendente',onClick:()=>{void run(sort===k&&k!=='Relevancia'?{newSort:k,newAsc:!asc}:{newSort:k,newAsc:k==='Titulo'||k==='Autor'});window.scrollTo(0,0)}}))}/>
- <button className="text-button" onClick={()=>setDetails(!details)}>{details?'Menos':'Detalles'}</button>
+ <button className="text-button result-details" onClick={()=>setDetails(!details)}>{details?'Menos':'Detalles'}</button>
  {!!hits.length&&<button className="text-button" onClick={()=>{setBulkNotice('');picking?endPicking():setPicking(true)}} aria-pressed={picking}>{picking?tr('Cancelar','Cancelar'):tr('Seleccionar','Seleccionar')}</button>}</div>
  {loading&&<div className="m3-linear-progress" role="progressbar" aria-label={tr('Buscando','Buscando')}/>}
  {loading&&slow&&<p className="result-note" role="status" style={{paddingTop:4}}>{tr('Galiciana está preparando esta consulta. A primeira vez pode tardar medio minuto ou máis.','Galiciana está preparando esta consulta. La primera vez puede tardar medio minuto o más.')}</p>}

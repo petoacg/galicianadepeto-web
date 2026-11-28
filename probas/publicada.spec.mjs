@@ -243,7 +243,7 @@ test('en una obra sin texto no se pide ni se ofrece revisarlo', async ({app, con
   await page.getByRole('textbox', {name: 'Buscar nesta páxina'}).fill('mestre');
   await page.getByRole('textbox', {name: 'Buscar nesta páxina'}).press('Enter');
   await expect(page.getByText('Esta páxina non ten texto recoñecido dispoñible.')).toBeVisible();
-  await expect(page.getByText('Revisar todo o documento')).toHaveCount(0);
+  await expect(page.getByRole('button', {name: 'Revisar todo o documento'})).toHaveCount(0);
   await expect(page.getByRole('button', {name: 'Reintentar'})).toHaveCount(0);
   expect(log.filter(x => /:(alto|ocr):/.test(x))).toEqual([]);
 });

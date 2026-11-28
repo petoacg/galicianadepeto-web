@@ -1305,3 +1305,19 @@ html body .native-featured-item .thumbnail{display:block;width:100%;height:auto;
 html body .native-featured-item strong{margin:0;font:500 var(--sp-14,.875rem)/var(--sp-20,1.25rem) var(--md-font);-webkit-line-clamp:2}
 html body .native-featured-item small{margin:-4px 0 0;font:var(--md-body-m);color:var(--muted);font-variant-numeric:tabular-nums}
 html body .native-featured-item:focus-visible{outline:2px solid var(--primary);outline-offset:4px;border-radius:6px}
+/* Visor: o que se revisou e «Revisar todo» van nunha liña propia enriba do pé. Entre as frechas só
+ * caben as páxinas; o texto partíase en cinco liñas e o botón saía polo bordo. */
+html body .native-viewer .match-scope{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 8px 0 20px;border-bottom:1px solid rgba(255,255,255,.07)}
+html body .native-viewer .match-scope-note{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--sp-13,.8125rem);color:var(--muted);font-variant-numeric:tabular-nums}
+html body .native-viewer .match-scope>.text-button{flex:none;min-height:44px;margin-left:auto;white-space:nowrap}
+/* A mesma barra de busca, a mesma altura en Inicio e en Resultados: a da etiqueta flotante (8 + etiqueta
+ * + texto + 8). Medida coas variables de texto, para que medre igual co tamaño de letra do teléfono. */
+html body .native-search-field{height:calc(16px + var(--sp-12,.75rem) * 1.3333333333 + var(--sp-16,1rem) * 1.5);min-height:0;box-sizing:border-box}
+/* Inicio: o que vén despois da banda de «Tal día» respira igual que as outras seccións. */
+html body .on-this-day+.install-card,html body .on-this-day~.native-reading{margin-top:24px}
+/* Resultados: os botóns que cambian de texto («Orde: Relevancia» → «Orde: Data», «Detalles» → «Menos»)
+ * gardan o ancho do seu texto máis longo, para que a fila non salte de liña ao tocalos. */
+html body .search-screen .result-controls .m3-menu-anchor>.text-button{min-width:calc(var(--sp-14,.875rem) * 10);justify-content:flex-start}
+html body .search-screen .result-controls>.result-details{min-width:calc(var(--sp-14,.875rem) * 5.5)}
+/* «Continuar lendo»: os datos do número caben en dúas liñas como moito; a tarxeta non medra co título. */
+html body .native-continue small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}

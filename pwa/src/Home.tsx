@@ -55,9 +55,9 @@ export default function Home({onOpen, onSearch, navigate}: Props) {
             {query && <button type="button" className="icon-button" aria-label={tr('Borrar a túa busca','Borrar tu búsqueda')} onClick={() => setQuery('')}>
               <MaterialIcon name="close"/>
             </button>}
-            {query.trim() && <button type="submit" className="icon-button native-field-search" aria-label={tr('Buscar','Buscar')}><MaterialIcon name="search"/></button>}
           </label>
-          {query.trim() && <button className="button home-submit"><MaterialIcon name="search" size={18}/>{tr('Buscar','Buscar')}</button>}
+          {/* Always there: appearing on the first letter pushed all of Inicio down; one way to search, not two. */}
+          <button className="button home-submit" disabled={!query.trim()}><MaterialIcon name="search" size={18}/>{tr('Buscar','Buscar')}</button>
         </form>
         <div className="native-search-links">
           <button className="text-button" onClick={() => navigate({screen: 'history'})}>{tr('As túas buscas','Tus búsquedas')}</button>
